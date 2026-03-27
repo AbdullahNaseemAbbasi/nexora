@@ -111,6 +111,19 @@ export class TenantsService {
     });
   }
 
+  async updateMemberRole(tenantId: string, userId: string, role: string) {
+    return this.prisma.tenantMember.update({
+      where: { userId_tenantId: { userId, tenantId } },
+      data: { role: role as Role },
+    });
+  }
+
+  async removeMember(tenantId: string, userId: string) {
+    return this.prisma.tenantMember.delete({
+      where: { userId_tenantId: { userId, tenantId } },
+    });
+  }
+
   // ===== INVITATIONS =====
 
   async inviteMember(tenantId: string, email: string, role?: string) {

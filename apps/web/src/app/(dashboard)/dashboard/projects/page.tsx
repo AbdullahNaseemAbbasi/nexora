@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, FolderKanban, Loader2 } from "lucide-react";
+import { Plus, FolderKanban, Loader2, MoreHorizontal, Pencil, Archive, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTenantStore } from "@/stores/tenant-store";
 import apiClient from "@/lib/api-client";
@@ -24,6 +24,7 @@ export default function ProjectsPage() {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [creating, setCreating] = useState(false);
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentTenant) return;
@@ -58,6 +59,25 @@ export default function ProjectsPage() {
       console.error("Failed to create project", err);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm("Are you sure? All tasks in this project will be deleted.")) return;
+    try {
+      await apiClient.delete(`/projects/${projectId}`);
+      fetchProjects();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleArchiveProject = async (projectId: string) => {
+    try {
+      await apiClient.patch(`/projects/${projectId}`, { status: "ARCHIVED" });
+      fetchProjects();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -145,16 +165,15 @@ export default function ProjectsPage() {
       ) : (
         <div className="border border-border rounded-lg divide-y divide-border">
           {projects.map((project) => (
-            <Link
+            <div
               key={project.id}
-              href={`/dashboard/projects/${project.id}`}
               className="flex items-center justify-between px-5 py-4 hover:bg-accent/50 transition-colors"
             >
-              <div className="flex items-center gap-3">
+              <Link href={`/dashboard/projects/${project.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="h-8 w-8 bg-accent rounded-lg flex items-center justify-center shrink-0">
                   <FolderKanban className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium">{project.name}</p>
                   {project.description && (
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
@@ -162,8 +181,8 @@ export default function ProjectsPage() {
                     </p>
                   )}
                 </div>
-              </div>
-              <div className="flex items-center gap-4">
+              </Link>
+              <div className="flex items-center gap-3 shrink-0">
                 <span className="text-xs text-muted-foreground">
                   {project._count.tasks} tasks
                 </span>
@@ -172,8 +191,38 @@ export default function ProjectsPage() {
                 >
                   {project.status.toLowerCase()}
                 </span>
+                {/* Actions Menu */}
+                <div className="relative">
+                  <button
+                    onClick={(e) => { e.preventDefault(); setMenuOpen(menuOpen === project.id ? null : project.id); }}
+                    className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                  {menuOpen === project.id && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(null)} />
+                      <div className="absolute right-0 top-full mt-1 bg-background border border-border rounded-lg shadow-lg z-50 py-1 w-40">
+                        <button
+                          onClick={() => { handleArchiveProject(project.id); setMenuOpen(null); }}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                          <Archive className="h-3.5 w-3.5" />
+                          Archive
+                        </button>
+                        <button
+                          onClick={() => { handleDeleteProject(project.id); setMenuOpen(null); }}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-destructive/70 hover:bg-accent hover:text-destructive transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}

@@ -4,6 +4,18 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { useDroppable } from "@dnd-kit/core";
+import { useDraggable } from "@dnd-kit/core";
+import {
   ArrowLeft,
   Plus,
   Loader2,
@@ -13,6 +25,7 @@ import {
   Eye,
   Search,
   Filter,
+  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/api-client";
@@ -50,6 +63,66 @@ const priorityDot: Record<string, string> = {
   URGENT: "bg-foreground",
 };
 
+// Droppable Column
+function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`space-y-2 min-h-[120px] rounded-lg p-1 transition-colors ${
+        isOver ? "bg-accent/50" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Draggable Task Card
+function DraggableTask({
+  task,
+  onClick,
+}: {
+  task: Task;
+  onClick: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+    data: { task },
+  });
+
+  const style = transform
+    ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`border border-border rounded-lg p-3 hover:border-foreground/20 transition-colors cursor-pointer bg-background group ${
+        isDragging ? "opacity-50 shadow-lg" : ""
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        {/* Drag Handle */}
+        <button
+          {...listeners}
+          {...attributes}
+          className="mt-0.5 text-muted-foreground/30 hover:text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+        <div
+          className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${priorityDot[task.priority]}`}
+        />
+        <p className="text-sm leading-snug flex-1" onClick={onClick}>
+          {task.title}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
@@ -60,6 +133,11 @@ export default function ProjectDetailPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
   useEffect(() => {
     fetchProject();
@@ -81,9 +159,7 @@ export default function ProjectDetailPage() {
     if (!newTitle.trim()) return;
     setCreating(true);
     try {
-      await apiClient.post(`/projects/${projectId}/tasks`, {
-        title: newTitle,
-      });
+      await apiClient.post(`/projects/${projectId}/tasks`, { title: newTitle });
       setNewTitle("");
       setShowForm(false);
       fetchProject();
@@ -91,6 +167,48 @@ export default function ProjectDetailPage() {
       console.error("Failed to create task", err);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const task = event.active.data.current?.task as Task;
+    setActiveTask(task);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveTask(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const taskId = active.id as string;
+    const newStatus = over.id as string;
+
+    // Check if dropped on a valid column
+    if (!columns.some((c) => c.key === newStatus)) return;
+
+    // Find the task
+    const task = project?.tasks.find((t) => t.id === taskId);
+    if (!task || task.status === newStatus) return;
+
+    // Optimistic update — immediately move the task in UI
+    setProject((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tasks: prev.tasks.map((t) =>
+          t.id === taskId ? { ...t, status: newStatus } : t
+        ),
+      };
+    });
+
+    // API call
+    try {
+      await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, {
+        status: newStatus,
+      });
+    } catch (err) {
+      console.error("Failed to update task status", err);
+      fetchProject(); // Revert on error
     }
   };
 
@@ -155,7 +273,7 @@ export default function ProjectDetailPage() {
       )}
 
       {/* Search + Filter */}
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex flex-wrap items-center gap-3 mb-5">
         <div className="flex items-center gap-2 flex-1 max-w-xs border border-border rounded-lg px-3 h-9">
           <Search className="h-3.5 w-3.5 text-muted-foreground" />
           <input
@@ -183,43 +301,58 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* Kanban Board */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {columns.map((col) => {
-          const tasks = project.tasks
-            .filter((t) => t.status === col.key)
-            .filter((t) => !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()))
-            .filter((t) => !priorityFilter || t.priority === priorityFilter);
-          return (
-            <div key={col.key} className="space-y-2">
-              <div className="flex items-center gap-2 px-1 pb-2">
-                <col.icon className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={2} />
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {col.label}
-                </span>
-                <span className="text-xs text-muted-foreground/50 ml-auto">
-                  {tasks.length}
-                </span>
-              </div>
+      {/* Kanban Board with Drag & Drop */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {columns.map((col) => {
+            const tasks = project.tasks
+              .filter((t) => t.status === col.key)
+              .filter((t) => !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()))
+              .filter((t) => !priorityFilter || t.priority === priorityFilter);
 
-              <div className="space-y-2 min-h-[100px]">
-                {tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    onClick={() => setSelectedTaskId(task.id)}
-                    className="border border-border rounded-lg p-3 hover:border-foreground/20 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${priorityDot[task.priority]}`} />
-                      <p className="text-sm leading-snug">{task.title}</p>
-                    </div>
-                  </div>
-                ))}
+            return (
+              <div key={col.key}>
+                <div className="flex items-center gap-2 px-1 pb-2">
+                  <col.icon className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={2} />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {col.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground/50 ml-auto">
+                    {tasks.length}
+                  </span>
+                </div>
+
+                <DroppableColumn id={col.key}>
+                  {tasks.map((task) => (
+                    <DraggableTask
+                      key={task.id}
+                      task={task}
+                      onClick={() => setSelectedTaskId(task.id)}
+                    />
+                  ))}
+                </DroppableColumn>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Drag Overlay — ye drag karte waqt dikhta hai */}
+        <DragOverlay>
+          {activeTask ? (
+            <div className="border border-foreground/20 rounded-lg p-3 bg-background shadow-xl w-[250px]">
+              <div className="flex items-start gap-2">
+                <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${priorityDot[activeTask.priority]}`} />
+                <p className="text-sm leading-snug">{activeTask.title}</p>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* Task Detail Panel */}
       {selectedTaskId && (

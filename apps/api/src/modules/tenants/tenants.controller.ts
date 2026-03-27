@@ -65,6 +65,27 @@ export class TenantsController {
     return this.tenantsService.getMembers(id);
   }
 
+  @UseGuards(TenantGuard, RolesGuard)
+  @Roles("ADMIN")
+  @Patch(":id/members/:userId")
+  async updateMemberRole(
+    @Param("id") tenantId: string,
+    @Param("userId") userId: string,
+    @Body("role") role: string,
+  ) {
+    return this.tenantsService.updateMemberRole(tenantId, userId, role);
+  }
+
+  @UseGuards(TenantGuard, RolesGuard)
+  @Roles("ADMIN")
+  @Delete(":id/members/:userId")
+  async removeMember(
+    @Param("id") tenantId: string,
+    @Param("userId") userId: string,
+  ) {
+    return this.tenantsService.removeMember(tenantId, userId);
+  }
+
   // ===== INVITATIONS =====
 
   @UseGuards(TenantGuard, RolesGuard)

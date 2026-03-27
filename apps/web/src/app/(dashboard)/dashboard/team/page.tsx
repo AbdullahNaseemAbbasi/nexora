@@ -57,6 +57,25 @@ export default function TeamPage() {
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
 
+  const handleRoleChange = async (memberId: string, userId: string, newRole: string) => {
+    try {
+      await apiClient.patch(`/tenants/${currentTenant!.id}/members/${userId}`, { role: newRole });
+      fetchData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!confirm("Remove this member from the workspace?")) return;
+    try {
+      await apiClient.delete(`/tenants/${currentTenant!.id}/members/${userId}`);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     if (!currentTenant) return;
     fetchData();
@@ -180,9 +199,23 @@ export default function TeamPage() {
                 <p className="text-xs text-muted-foreground">{member.user.email}</p>
               </div>
             </div>
-            <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded ${roleBadge[member.role]}`}>
-              {roleIcon[member.role]}
-              {member.role.charAt(0) + member.role.slice(1).toLowerCase()}
+            <div className="flex items-center gap-2">
+              <select
+                value={member.role}
+                onChange={(e) => handleRoleChange(member.id, member.user.id, e.target.value)}
+                className="h-7 bg-accent text-xs rounded px-2 outline-none cursor-pointer border-none"
+              >
+                <option value="ADMIN">Admin</option>
+                <option value="MANAGER">Manager</option>
+                <option value="MEMBER">Member</option>
+              </select>
+              <button
+                onClick={() => handleRemoveMember(member.user.id)}
+                className="p-1 text-muted-foreground/40 hover:text-destructive rounded transition-colors"
+                title="Remove member"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
         ))}

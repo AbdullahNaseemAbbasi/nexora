@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Send, Circle, CheckCircle2, Clock, Eye, Loader2, UserPlus, Trash2 } from "lucide-react";
+import { X, Send, Circle, CheckCircle2, Clock, Eye, Loader2, UserPlus, Trash2, Calendar, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/api-client";
 import { useTenantStore } from "@/stores/tenant-store";
@@ -64,6 +64,9 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
   const [loading, setLoading] = useState(true);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [showAssign, setShowAssign] = useState(false);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [descValue, setDescValue] = useState("");
+  const [dueDate, setDueDate] = useState("");
 
   useEffect(() => {
     fetchTask();
@@ -134,6 +137,32 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
   const handleUnassign = async (userId: string) => {
     try {
       await apiClient.delete(`/projects/${projectId}/tasks/${taskId}/assign/${userId}`);
+      fetchTask();
+      onUpdate();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSaveDescription = async () => {
+    try {
+      await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, {
+        description: descValue,
+      });
+      fetchTask();
+      onUpdate();
+      setEditingDesc(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDueDateChange = async (date: string) => {
+    setDueDate(date);
+    try {
+      await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, {
+        dueDate: date || null,
+      });
       fetchTask();
       onUpdate();
     } catch (err) {
@@ -214,9 +243,53 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
             <h3 className="text-lg font-semibold">{task.title}</h3>
 
             {/* Description */}
-            {task.description && (
-              <p className="text-sm text-muted-foreground leading-relaxed">{task.description}</p>
-            )}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs text-muted-foreground">Description</p>
+                {!editingDesc && (
+                  <button
+                    onClick={() => { setEditingDesc(true); setDescValue(task.description || ""); }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </button>
+                )}
+              </div>
+              {editingDesc ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={descValue}
+                    onChange={(e) => setDescValue(e.target.value)}
+                    placeholder="Add a description..."
+                    className="w-full h-24 bg-accent rounded-lg px-3 py-2 text-sm outline-none resize-none placeholder:text-muted-foreground/50"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleSaveDescription}>Save</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingDesc(false)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {task.description || "No description"}
+                </p>
+              )}
+            </div>
+
+            {/* Due Date */}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                Due date
+              </p>
+              <input
+                type="date"
+                value={dueDate || (task.dueDate ? task.dueDate.split("T")[0] : "")}
+                onChange={(e) => handleDueDateChange(e.target.value)}
+                className="h-9 bg-accent rounded-lg px-3 text-sm outline-none cursor-pointer"
+              />
+            </div>
 
             {/* Status */}
             <div>
