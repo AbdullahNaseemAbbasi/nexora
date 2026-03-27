@@ -17,6 +17,7 @@ import {
   Moon,
   Sun,
   Menu,
+  Plus,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTenantStore } from "@/stores/tenant-store";
@@ -39,9 +40,10 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, setAuth, logout } = useAuthStore();
-  const { currentTenant, setTenants } = useTenantStore();
+  const { tenants, currentTenant, setTenants, setCurrentTenant } = useTenantStore();
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [orgDropdown, setOrgDropdown] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -105,15 +107,60 @@ export default function DashboardLayout({
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Workspace */}
-        <div className="px-3 pt-4 pb-2">
-          <button className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-accent transition-colors">
+        {/* Workspace Switcher */}
+        <div className="px-3 pt-4 pb-2 relative">
+          <button
+            onClick={() => setOrgDropdown(!orgDropdown)}
+            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
+          >
             <div className="h-6 w-6 bg-foreground rounded flex items-center justify-center shrink-0">
-              <span className="text-background text-xs font-semibold">N</span>
+              <span className="text-background text-xs font-semibold">
+                {currentTenant?.name?.[0] || "N"}
+              </span>
             </div>
             <span className="text-sm font-semibold truncate">{currentTenant?.name || "Select workspace"}</span>
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto shrink-0" />
+            <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground ml-auto shrink-0 transition-transform ${orgDropdown ? "rotate-180" : ""}`} />
           </button>
+
+          {/* Dropdown */}
+          {orgDropdown && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setOrgDropdown(false)} />
+              <div className="absolute left-3 right-3 top-full mt-1 bg-background border border-border rounded-lg shadow-lg z-50 py-1">
+                <p className="px-3 py-1.5 text-[11px] text-muted-foreground font-medium uppercase tracking-wide">
+                  Workspaces
+                </p>
+                {tenants.map((tenant) => (
+                  <button
+                    key={tenant.id}
+                    onClick={() => {
+                      setCurrentTenant(tenant);
+                      setOrgDropdown(false);
+                      window.location.href = "/dashboard";
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] hover:bg-accent transition-colors ${
+                      currentTenant?.id === tenant.id ? "bg-accent font-medium" : "text-muted-foreground"
+                    }`}
+                  >
+                    <div className="h-5 w-5 bg-foreground/10 rounded flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-medium">{tenant.name[0]}</span>
+                    </div>
+                    {tenant.name}
+                  </button>
+                ))}
+                <div className="border-t border-border mt-1 pt-1">
+                  <Link
+                    href="/dashboard/settings"
+                    onClick={() => setOrgDropdown(false)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-muted-foreground hover:bg-accent transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Create workspace
+                  </Link>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Nav */}
