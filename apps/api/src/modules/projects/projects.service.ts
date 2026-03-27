@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { ProjectStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateProjectDto } from "./dto/create-project.dto";
 import { UpdateProjectDto } from "./dto/update-project.dto";
@@ -66,7 +67,10 @@ export class ProjectsService {
   async update(id: string, dto: UpdateProjectDto) {
     return this.prisma.project.update({
       where: { id },
-      data: dto,
+      data: {
+        ...dto,
+        status: dto.status as ProjectStatus | undefined,
+      },
     });
   }
 

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { Priority, TaskStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateTaskDto } from "./dto/create-task.dto";
 import { UpdateTaskDto } from "./dto/update-task.dto";
@@ -14,7 +15,7 @@ export class TasksService {
         projectId,
         title: dto.title,
         description: dto.description,
-        priority: dto.priority || "MEDIUM",
+        priority: (dto.priority || "MEDIUM") as Priority,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       },
     });
@@ -86,7 +87,11 @@ export class TasksService {
     return this.prisma.task.update({
       where: { id },
       data: {
-        ...dto,
+        title: dto.title,
+        description: dto.description,
+        status: dto.status as TaskStatus | undefined,
+        priority: dto.priority as Priority | undefined,
+        position: dto.position,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       },
     });
