@@ -19,6 +19,7 @@ import {
   Menu,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
+import { useTenantStore } from "@/stores/tenant-store";
 import apiClient from "@/lib/api-client";
 
 const sidebarLinks = [
@@ -38,6 +39,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, setAuth, logout } = useAuthStore();
+  const { currentTenant, setTenants } = useTenantStore();
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -51,22 +53,28 @@ export default function DashboardLayout({
       return;
     }
 
-    if (!user) {
-      apiClient
-        .get("/auth/me")
-        .then((res) => {
+    const init = async () => {
+      try {
+        // Fetch user if not in store
+        let userData = user;
+        if (!userData) {
+          const res = await apiClient.get("/auth/me");
           const refreshToken = localStorage.getItem("refreshToken") || "";
           setAuth(res.data, token, refreshToken);
-          setLoading(false);
-        })
-        .catch(() => {
-          logout();
-          router.push("/login");
-        });
-    } else {
-      setLoading(false);
-    }
-  }, [user, router, setAuth, logout]);
+          userData = res.data;
+        }
+        // Fetch tenants
+        const tenantsRes = await apiClient.get("/tenants");
+        setTenants(tenantsRes.data);
+        setLoading(false);
+      } catch {
+        logout();
+        router.push("/login");
+      }
+    };
+
+    init();
+  }, []);
 
   if (loading) {
     return (
@@ -103,7 +111,7 @@ export default function DashboardLayout({
             <div className="h-6 w-6 bg-foreground rounded flex items-center justify-center shrink-0">
               <span className="text-background text-xs font-semibold">N</span>
             </div>
-            <span className="text-sm font-semibold truncate">TechSoft Solutions</span>
+            <span className="text-sm font-semibold truncate">{currentTenant?.name || "Select workspace"}</span>
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto shrink-0" />
           </button>
         </div>
