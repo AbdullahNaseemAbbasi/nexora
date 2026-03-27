@@ -64,4 +64,30 @@ export class TenantsController {
   async getMembers(@Param("id") id: string) {
     return this.tenantsService.getMembers(id);
   }
+
+  // ===== INVITATIONS =====
+
+  @UseGuards(TenantGuard, RolesGuard)
+  @Roles("ADMIN", "MANAGER")
+  @Post(":id/invitations")
+  async invite(
+    @Param("id") tenantId: string,
+    @Body() body: { email: string; role?: string },
+  ) {
+    return this.tenantsService.inviteMember(tenantId, body.email, body.role);
+  }
+
+  @Get(":id/invitations")
+  @UseGuards(TenantGuard)
+  async getInvitations(@Param("id") tenantId: string) {
+    return this.tenantsService.getInvitations(tenantId);
+  }
+
+  @Post("join/:token")
+  async joinByInvitation(
+    @Param("token") token: string,
+    @CurrentUser("id") userId: string,
+  ) {
+    return this.tenantsService.acceptInvitation(token, userId);
+  }
 }

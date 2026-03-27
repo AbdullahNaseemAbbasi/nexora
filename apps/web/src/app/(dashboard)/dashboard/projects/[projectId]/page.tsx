@@ -11,9 +11,12 @@ import {
   CheckCircle2,
   Clock,
   Eye,
+  Search,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/api-client";
+import TaskDetailPanel from "@/components/tasks/task-detail-panel";
 
 interface Task {
   id: string;
@@ -54,6 +57,9 @@ export default function ProjectDetailPage() {
   const [showForm, setShowForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProject();
@@ -85,15 +91,6 @@ export default function ProjectDetailPage() {
       console.error("Failed to create task", err);
     } finally {
       setCreating(false);
-    }
-  };
-
-  const updateTaskStatus = async (taskId: string, status: string) => {
-    try {
-      await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, { status });
-      fetchProject();
-    } catch (err) {
-      console.error("Failed to update task", err);
     }
   };
 
@@ -157,13 +154,44 @@ export default function ProjectDetailPage() {
         </form>
       )}
 
+      {/* Search + Filter */}
+      <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-2 flex-1 max-w-xs border border-border rounded-lg px-3 h-9">
+          <Search className="h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-transparent text-sm outline-none w-full placeholder:text-muted-foreground/50"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+          {["LOW", "MEDIUM", "HIGH", "URGENT"].map((p) => (
+            <button
+              key={p}
+              onClick={() => setPriorityFilter(priorityFilter === p ? null : p)}
+              className={`text-xs px-2 py-1 rounded transition-colors ${
+                priorityFilter === p
+                  ? "bg-foreground text-background"
+                  : "bg-accent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {p.charAt(0) + p.slice(1).toLowerCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Kanban Board */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {columns.map((col) => {
-          const tasks = project.tasks.filter((t) => t.status === col.key);
+          const tasks = project.tasks
+            .filter((t) => t.status === col.key)
+            .filter((t) => !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()))
+            .filter((t) => !priorityFilter || t.priority === priorityFilter);
           return (
             <div key={col.key} className="space-y-2">
-              {/* Column Header */}
               <div className="flex items-center gap-2 px-1 pb-2">
                 <col.icon className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={2} />
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -174,30 +202,16 @@ export default function ProjectDetailPage() {
                 </span>
               </div>
 
-              {/* Tasks */}
               <div className="space-y-2 min-h-[100px]">
                 {tasks.map((task) => (
                   <div
                     key={task.id}
-                    className="border border-border rounded-lg p-3 hover:border-foreground/20 transition-colors cursor-pointer group"
+                    onClick={() => setSelectedTaskId(task.id)}
+                    className="border border-border rounded-lg p-3 hover:border-foreground/20 transition-colors cursor-pointer"
                   >
                     <div className="flex items-start gap-2">
                       <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${priorityDot[task.priority]}`} />
                       <p className="text-sm leading-snug">{task.title}</p>
-                    </div>
-                    {/* Quick status buttons */}
-                    <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {columns
-                        .filter((c) => c.key !== task.status)
-                        .map((c) => (
-                          <button
-                            key={c.key}
-                            onClick={() => updateTaskStatus(task.id, c.key)}
-                            className="text-[10px] text-muted-foreground hover:text-foreground bg-accent px-1.5 py-0.5 rounded transition-colors"
-                          >
-                            {c.label}
-                          </button>
-                        ))}
                     </div>
                   </div>
                 ))}
@@ -206,6 +220,16 @@ export default function ProjectDetailPage() {
           );
         })}
       </div>
+
+      {/* Task Detail Panel */}
+      {selectedTaskId && (
+        <TaskDetailPanel
+          taskId={selectedTaskId}
+          projectId={projectId}
+          onClose={() => setSelectedTaskId(null)}
+          onUpdate={fetchProject}
+        />
+      )}
     </div>
   );
 }
