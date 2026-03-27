@@ -1,10 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { useTheme } from "next-themes";
+import {
+  LayoutDashboard,
+  FolderKanban,
+  Users,
+  Settings,
+  LogOut,
+  Sparkles,
+  Bell,
+  Search,
+  ChevronDown,
+  Moon,
+  Sun,
+  Menu,
+} from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import apiClient from "@/lib/api-client";
+
+const sidebarLinks = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/projects", label: "Projects", icon: FolderKanban },
+  { href: "/dashboard/team", label: "Team", icon: Users },
+  { href: "/dashboard/ai", label: "AI Assistant", icon: Sparkles },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+];
 
 export default function DashboardLayout({
   children,
@@ -12,8 +35,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, isAuthenticated, setAuth, logout } = useAuthStore();
+  const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
+  const { user, setAuth, logout } = useAuthStore();
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -22,7 +51,6 @@ export default function DashboardLayout({
       return;
     }
 
-    // Fetch user data if not in store
     if (!user) {
       apiClient
         .get("/auth/me")
@@ -43,51 +71,133 @@ export default function DashboardLayout({
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg text-muted-foreground">Loading...</div>
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
       </div>
     );
   }
 
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
   return (
     <div className="min-h-screen flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white flex flex-col">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold">Nexora</h1>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* SIDEBAR */}
+      <aside
+        className={`fixed h-full z-50 w-[240px] border-r border-border bg-background flex flex-col transition-transform lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Workspace */}
+        <div className="px-3 pt-4 pb-2">
+          <button className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-accent transition-colors">
+            <div className="h-6 w-6 bg-foreground rounded flex items-center justify-center shrink-0">
+              <span className="text-background text-xs font-semibold">N</span>
+            </div>
+            <span className="text-sm font-semibold truncate">TechSoft Solutions</span>
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto shrink-0" />
+          </button>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1">
-          <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-800 text-sm">
-            Dashboard
-          </Link>
-          <Link href="/dashboard/projects" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-800 text-sm">
-            Projects
-          </Link>
-          <Link href="/dashboard/team" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-800 text-sm">
-            Team
-          </Link>
-          <Link href="/dashboard/settings" className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-800 text-sm">
-            Settings
-          </Link>
+        {/* Nav */}
+        <nav className="flex-1 px-3 pt-1 space-y-0.5">
+          {sidebarLinks.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[13px] transition-colors ${
+                  isActive
+                    ? "bg-accent text-foreground font-medium"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                <link.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* User info */}
-        <div className="p-4 border-t border-gray-700">
-          <div className="text-sm font-medium">{user?.firstName} {user?.lastName}</div>
-          <div className="text-xs text-gray-400">{user?.email}</div>
-          <button
-            onClick={() => { logout(); router.push("/login"); }}
-            className="mt-2 text-xs text-red-400 hover:text-red-300"
-          >
-            Logout
-          </button>
+        {/* User */}
+        <div className="px-3 pb-3 border-t border-border pt-2">
+          <div className="flex items-center gap-2.5 px-2 py-1.5">
+            <div className="h-6 w-6 bg-accent rounded-full flex items-center justify-center shrink-0">
+              <span className="text-[10px] font-medium">
+                {user?.firstName?.[0]}{user?.lastName?.[0]}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-medium truncate">{user?.firstName} {user?.lastName}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
+              title="Logout"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 bg-gray-50">
-        <div className="p-8">{children}</div>
-      </main>
+      {/* MAIN */}
+      <div className="flex-1 lg:ml-[240px]">
+        {/* Topbar */}
+        <header className="h-12 border-b border-border flex items-center justify-between px-4 sm:px-6 sticky top-0 bg-background/80 backdrop-blur-sm z-30">
+          <div className="flex items-center gap-3">
+            <button
+              className="lg:hidden p-1 text-muted-foreground hover:text-foreground"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="hidden sm:flex items-center gap-2 text-muted-foreground">
+              <Search className="h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Search..."
+                className="bg-transparent text-sm outline-none placeholder:text-muted-foreground/60 w-48 lg:w-64"
+              />
+            </div>
+          </div>
+
+          {/* Right side — Theme toggle + Bell */}
+          <div className="flex items-center gap-1">
+            {mounted && (
+              <button
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
+                title={theme === "dark" ? "Light mode" : "Dark mode"}
+              >
+                {theme === "dark" ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+              </button>
+            )}
+            <button className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors relative">
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 bg-primary rounded-full" />
+            </button>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+      </div>
     </div>
   );
 }
