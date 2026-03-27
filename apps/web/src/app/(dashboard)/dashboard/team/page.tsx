@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Shield, UserCog, User, Plus, Mail, Clock, Check, X } from "lucide-react";
+import { Loader2, Shield, UserCog, User, Plus, Mail, Clock, Check, X, Copy, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTenantStore } from "@/stores/tenant-store";
 import apiClient from "@/lib/api-client";
@@ -24,6 +24,7 @@ interface Invitation {
   email: string;
   role: string;
   status: string;
+  token: string;
   createdAt: string;
 }
 
@@ -208,6 +209,16 @@ export default function TeamPage() {
                       </p>
                     </div>
                   </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/join/${inv.token}`);
+                    }}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground bg-accent px-2.5 py-1 rounded transition-colors"
+                    title="Copy invite link"
+                  >
+                    <Link2 className="h-3 w-3" />
+                    Copy link
+                  </button>
                 </div>
               ))}
           </div>

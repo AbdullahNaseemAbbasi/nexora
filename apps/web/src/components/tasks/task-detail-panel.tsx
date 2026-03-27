@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Send, Circle, CheckCircle2, Clock, Eye, Loader2 } from "lucide-react";
+import { X, Send, Circle, CheckCircle2, Clock, Eye, Loader2, UserPlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/api-client";
+import { useTenantStore } from "@/stores/tenant-store";
 
 interface Comment {
   id: string;
@@ -49,16 +50,25 @@ interface Props {
   onUpdate: () => void;
 }
 
+interface TeamMember {
+  id: string;
+  user: { id: string; firstName: string; lastName: string };
+}
+
 export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }: Props) {
+  const currentTenant = useTenantStore((s) => s.currentTenant);
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [showAssign, setShowAssign] = useState(false);
 
   useEffect(() => {
     fetchTask();
     fetchComments();
+    if (currentTenant) fetchTeamMembers();
   }, [taskId]);
 
   const fetchTask = async () => {
@@ -96,6 +106,47 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
       await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, { priority });
       fetchTask();
       onUpdate();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchTeamMembers = async () => {
+    try {
+      const res = await apiClient.get(`/tenants/${currentTenant!.id}/members`);
+      setTeamMembers(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAssign = async (userId: string) => {
+    try {
+      await apiClient.post(`/projects/${projectId}/tasks/${taskId}/assign`, { userId });
+      fetchTask();
+      onUpdate();
+      setShowAssign(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUnassign = async (userId: string) => {
+    try {
+      await apiClient.delete(`/projects/${projectId}/tasks/${taskId}/assign/${userId}`);
+      fetchTask();
+      onUpdate();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this task?")) return;
+    try {
+      await apiClient.delete(`/projects/${projectId}/tasks/${taskId}`);
+      onUpdate();
+      onClose();
     } catch (err) {
       console.error(err);
     }
@@ -210,27 +261,75 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
             </div>
 
             {/* Assignees */}
-            {task.assignments.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Assigned to</p>
-                <div className="flex flex-wrap gap-2">
-                  {task.assignments.map((a) => (
-                    <div key={a.user.id} className="flex items-center gap-1.5 bg-accent px-2 py-1 rounded text-xs">
-                      <div className="h-4 w-4 bg-foreground/10 rounded-full flex items-center justify-center">
-                        <span className="text-[8px] font-medium">{a.user.firstName[0]}{a.user.lastName[0]}</span>
-                      </div>
-                      {a.user.firstName} {a.user.lastName}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Created */}
             <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-muted-foreground">Assigned to</p>
+                <button
+                  onClick={() => setShowAssign(!showAssign)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <UserPlus className="h-3 w-3" />
+                  Assign
+                </button>
+              </div>
+
+              {/* Current assignees */}
+              <div className="flex flex-wrap gap-2">
+                {task.assignments.map((a) => (
+                  <div key={a.user.id} className="flex items-center gap-1.5 bg-accent px-2 py-1 rounded text-xs group">
+                    <div className="h-4 w-4 bg-foreground/10 rounded-full flex items-center justify-center">
+                      <span className="text-[8px] font-medium">{a.user.firstName[0]}{a.user.lastName[0]}</span>
+                    </div>
+                    {a.user.firstName} {a.user.lastName}
+                    <button
+                      onClick={() => handleUnassign(a.user.id)}
+                      className="text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {task.assignments.length === 0 && (
+                  <p className="text-xs text-muted-foreground/50">No one assigned</p>
+                )}
+              </div>
+
+              {/* Assign dropdown */}
+              {showAssign && (
+                <div className="mt-2 border border-border rounded-lg py-1">
+                  {teamMembers
+                    .filter((m) => !task.assignments.some((a) => a.user.id === m.user.id))
+                    .map((m) => (
+                      <button
+                        key={m.user.id}
+                        onClick={() => handleAssign(m.user.id)}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent transition-colors"
+                      >
+                        <div className="h-5 w-5 bg-accent rounded-full flex items-center justify-center">
+                          <span className="text-[9px] font-medium">{m.user.firstName[0]}{m.user.lastName[0]}</span>
+                        </div>
+                        {m.user.firstName} {m.user.lastName}
+                      </button>
+                    ))}
+                  {teamMembers.filter((m) => !task.assignments.some((a) => a.user.id === m.user.id)).length === 0 && (
+                    <p className="px-3 py-1.5 text-xs text-muted-foreground/50">Everyone is assigned</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Created + Delete */}
+            <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
                 Created {timeAgo(task.createdAt)}
               </p>
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-1 text-xs text-destructive/60 hover:text-destructive transition-colors"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete
+              </button>
             </div>
 
             {/* Divider */}
