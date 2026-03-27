@@ -1,16 +1,29 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuthStore } from "@/stores/auth-store";
-import { Circle, CheckCircle2, ArrowRight } from "lucide-react";
+import { useTenantStore } from "@/stores/tenant-store";
+import apiClient from "@/lib/api-client";
+import { Circle, CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
 
-const recentTasks = [
-  { title: "Design new homepage mockup", status: "DONE", priority: "High", project: "Website Redesign" },
-  { title: "Implement hero section", status: "IN_PROGRESS", priority: "High", project: "Website Redesign" },
-  { title: "Build login screen", status: "IN_PROGRESS", priority: "High", project: "Mobile App" },
-  { title: "Setup contact form backend", status: "TODO", priority: "Medium", project: "Website Redesign" },
-  { title: "Write unit tests", status: "IN_REVIEW", priority: "Medium", project: "Website Redesign" },
-  { title: "Integrate push notifications", status: "TODO", priority: "Medium", project: "Mobile App" },
-];
+interface Overview {
+  totalProjects: number;
+  totalMembers: number;
+  totalTasks: number;
+  completedTasks: number;
+  inProgressTasks: number;
+  todoTasks: number;
+  inReviewTasks: number;
+}
+
+interface RecentTask {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  project: { name: string };
+}
 
 const statusIcon: Record<string, React.ReactNode> = {
   TODO: <Circle className="h-4 w-4 text-muted-foreground/40" strokeWidth={1.5} />,
@@ -27,27 +40,71 @@ const statusLabel: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const user = useAuthStore((state) => state.user);
+  const user = useAuthStore((s) => s.user);
+  const currentTenant = useTenantStore((s) => s.currentTenant);
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [tasks, setTasks] = useState<RecentTask[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currentTenant) return;
+
+    const fetchData = async () => {
+      try {
+        const [overviewRes, projectsRes] = await Promise.all([
+          apiClient.get("/analytics/overview"),
+          apiClient.get("/projects"),
+        ]);
+        setOverview(overviewRes.data);
+
+        // Get recent tasks from first project
+        const allTasks: RecentTask[] = [];
+        for (const project of projectsRes.data.slice(0, 3)) {
+          const tasksRes = await apiClient.get(`/projects/${project.id}/tasks`);
+          for (const task of tasksRes.data.slice(0, 3)) {
+            allTasks.push({ ...task, project: { name: project.name } });
+          }
+        }
+        setTasks(allTasks.slice(0, 8));
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [currentTenant]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-semibold">
-          Good evening, {user?.firstName}
+          {greeting}, {user?.firstName}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Here&apos;s an overview of your workspace.
+          Here&apos;s an overview of {currentTenant?.name}.
         </p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: "Total projects", value: "3" },
-          { label: "In progress", value: "4" },
-          { label: "Completed", value: "3" },
-          { label: "Team members", value: "2" },
+          { label: "Total projects", value: overview?.totalProjects || 0 },
+          { label: "In progress", value: overview?.inProgressTasks || 0 },
+          { label: "Completed", value: overview?.completedTasks || 0 },
+          { label: "Team members", value: overview?.totalMembers || 0 },
         ].map((stat) => (
           <div key={stat.label} className="border border-border rounded-lg p-5">
             <p className="text-sm text-muted-foreground">{stat.label}</p>
@@ -57,33 +114,38 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Tasks */}
-      <div className="border border-border rounded-lg">
-        <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Recent tasks</h2>
-          <button className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
-            View all <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        <div>
-          {recentTasks.map((task, index) => (
-            <div
-              key={index}
-              className={`flex items-center gap-3 px-5 py-3 hover:bg-accent/50 transition-colors cursor-pointer ${
-                index !== recentTasks.length - 1 ? "border-b border-border" : ""
-              }`}
+      {tasks.length > 0 && (
+        <div className="border border-border rounded-lg">
+          <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Recent tasks</h2>
+            <Link
+              href="/dashboard/projects"
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
             >
-              {statusIcon[task.status]}
-              <span className="text-sm flex-1">{task.title}</span>
-              <span className="text-xs text-muted-foreground bg-accent px-2.5 py-1 rounded hidden sm:block">
-                {task.project}
-              </span>
-              <span className="text-xs text-muted-foreground w-24 text-right">
-                {statusLabel[task.status]}
-              </span>
-            </div>
-          ))}
+              View all <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <div>
+            {tasks.map((task, index) => (
+              <div
+                key={task.id}
+                className={`flex items-center gap-3 px-5 py-3 hover:bg-accent/50 transition-colors cursor-pointer ${
+                  index !== tasks.length - 1 ? "border-b border-border" : ""
+                }`}
+              >
+                {statusIcon[task.status]}
+                <span className="text-sm flex-1">{task.title}</span>
+                <span className="text-xs text-muted-foreground bg-accent px-2.5 py-1 rounded hidden sm:block">
+                  {task.project.name}
+                </span>
+                <span className="text-xs text-muted-foreground w-24 text-right">
+                  {statusLabel[task.status]}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

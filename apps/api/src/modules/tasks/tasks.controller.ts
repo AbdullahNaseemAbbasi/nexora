@@ -14,6 +14,7 @@ import { TenantGuard } from "../../common/guards/tenant.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentTenant } from "../../common/decorators/current-tenant.decorator";
+import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { TasksService } from "./tasks.service";
 import { CreateTaskDto } from "./dto/create-task.dto";
 import { UpdateTaskDto } from "./dto/update-task.dto";
@@ -62,5 +63,43 @@ export class TasksController {
   @Delete(":id")
   async remove(@Param("id") id: string) {
     return this.tasksService.remove(id);
+  }
+
+  // ===== COMMENTS =====
+
+  @Get(":id/comments")
+  async getComments(@Param("id") taskId: string) {
+    return this.tasksService.getComments(taskId);
+  }
+
+  @Post(":id/comments")
+  async addComment(
+    @Param("id") taskId: string,
+    @CurrentUser("id") userId: string,
+    @Body("content") content: string,
+  ) {
+    return this.tasksService.addComment(taskId, userId, content);
+  }
+
+  // ===== ASSIGNMENTS =====
+
+  @Post(":id/assign")
+  @UseGuards(RolesGuard)
+  @Roles("ADMIN", "MANAGER")
+  async assignUser(
+    @Param("id") taskId: string,
+    @Body("userId") userId: string,
+  ) {
+    return this.tasksService.assignUser(taskId, userId);
+  }
+
+  @Delete(":id/assign/:userId")
+  @UseGuards(RolesGuard)
+  @Roles("ADMIN", "MANAGER")
+  async unassignUser(
+    @Param("id") taskId: string,
+    @Param("userId") userId: string,
+  ) {
+    return this.tasksService.unassignUser(taskId, userId);
   }
 }

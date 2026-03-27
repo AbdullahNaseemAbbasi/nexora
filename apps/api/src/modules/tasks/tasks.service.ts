@@ -100,4 +100,48 @@ export class TasksService {
   async remove(id: string) {
     return this.prisma.task.delete({ where: { id } });
   }
+
+  // ===== COMMENTS =====
+
+  async getComments(taskId: string) {
+    return this.prisma.taskComment.findMany({
+      where: { taskId },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true, avatarUrl: true },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  async addComment(taskId: string, userId: string, content: string) {
+    return this.prisma.taskComment.create({
+      data: { taskId, userId, content },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true, avatarUrl: true },
+        },
+      },
+    });
+  }
+
+  // ===== ASSIGNMENTS =====
+
+  async assignUser(taskId: string, userId: string) {
+    return this.prisma.taskAssignment.create({
+      data: { taskId, userId },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true, avatarUrl: true },
+        },
+      },
+    });
+  }
+
+  async unassignUser(taskId: string, userId: string) {
+    return this.prisma.taskAssignment.delete({
+      where: { taskId_userId: { taskId, userId } },
+    });
+  }
 }
