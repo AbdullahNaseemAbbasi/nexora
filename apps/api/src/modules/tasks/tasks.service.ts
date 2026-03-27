@@ -73,6 +73,9 @@ export class TasksService {
           },
           orderBy: { createdAt: "asc" },
         },
+        labels: {
+          include: { label: true },
+        },
       },
     });
 
@@ -93,6 +96,7 @@ export class TasksService {
         priority: dto.priority as Priority | undefined,
         position: dto.position,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+        estimate: dto.estimate,
       },
     });
   }
@@ -142,6 +146,21 @@ export class TasksService {
   async unassignUser(taskId: string, userId: string) {
     return this.prisma.taskAssignment.delete({
       where: { taskId_userId: { taskId, userId } },
+    });
+  }
+
+  // ===== LABELS =====
+
+  async addLabel(taskId: string, labelId: string) {
+    return this.prisma.taskLabel.create({
+      data: { taskId, labelId },
+      include: { label: true },
+    });
+  }
+
+  async removeLabel(taskId: string, labelId: string) {
+    return this.prisma.taskLabel.delete({
+      where: { taskId_labelId: { taskId, labelId } },
     });
   }
 }

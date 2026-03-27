@@ -34,4 +34,35 @@ export class AnalyticsService {
       inReviewTasks: statusCounts["IN_REVIEW"] || 0,
     };
   }
+
+  async search(tenantId: string, query: string) {
+    if (!query || query.length < 2) return { projects: [], tasks: [] };
+
+    const [projects, tasks] = await Promise.all([
+      this.prisma.project.findMany({
+        where: {
+          tenantId,
+          name: { contains: query, mode: "insensitive" },
+        },
+        select: { id: true, name: true, status: true },
+        take: 5,
+      }),
+      this.prisma.task.findMany({
+        where: {
+          tenantId,
+          title: { contains: query, mode: "insensitive" },
+        },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          projectId: true,
+          project: { select: { name: true } },
+        },
+        take: 10,
+      }),
+    ]);
+
+    return { projects, tasks };
+  }
 }

@@ -45,6 +45,10 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [orgDropdown, setOrgDropdown] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{projects: any[]; tasks: any[]}>({projects: [], tasks: []});
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [taskCounts, setTaskCounts] = useState({ total: 0, inProgress: 0 });
 
   useEffect(() => setMounted(true), []);
 
@@ -68,6 +72,14 @@ export default function DashboardLayout({
         // Fetch tenants
         const tenantsRes = await apiClient.get("/tenants");
         setTenants(tenantsRes.data);
+        // Fetch task counts
+        try {
+          const overviewRes = await apiClient.get("/analytics/overview");
+          setTaskCounts({
+            total: overviewRes.data.totalTasks || 0,
+            inProgress: overviewRes.data.inProgressTasks || 0,
+          });
+        } catch { /* ignore if fails */ }
         setLoading(false);
       } catch {
         logout();
@@ -85,6 +97,16 @@ export default function DashboardLayout({
       </div>
     );
   }
+
+  const handleSearch = async (q: string) => {
+    setSearchQuery(q);
+    if (q.length < 2) { setSearchResults({projects: [], tasks: []}); setSearchOpen(false); return; }
+    try {
+      const res = await apiClient.get(`/analytics/search?q=${encodeURIComponent(q)}`);
+      setSearchResults(res.data);
+      setSearchOpen(true);
+    } catch { /* ignore */ }
+  };
 
   const handleLogout = () => {
     logout();
@@ -179,7 +201,12 @@ export default function DashboardLayout({
                 }`}
               >
                 <link.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                {link.label}
+                <span className="flex-1">{link.label}</span>
+                {link.label === "Projects" && taskCounts.inProgress > 0 && (
+                  <span className="text-[10px] text-muted-foreground bg-accent px-1.5 py-0.5 rounded">
+                    {taskCounts.inProgress}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -218,13 +245,47 @@ export default function DashboardLayout({
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="hidden sm:flex items-center gap-2 text-muted-foreground">
+            <div className="hidden sm:flex items-center gap-2 text-muted-foreground relative">
               <Search className="h-4 w-4" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search projects, tasks..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                onFocus={() => searchQuery.length >= 2 && setSearchOpen(true)}
                 className="bg-transparent text-sm outline-none placeholder:text-muted-foreground/60 w-48 lg:w-64"
               />
+              {searchOpen && (searchResults.projects.length > 0 || searchResults.tasks.length > 0) && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setSearchOpen(false)} />
+                  <div className="absolute left-0 top-full mt-3 w-80 bg-background border border-border rounded-lg shadow-lg z-50 py-1 max-h-80 overflow-y-auto">
+                    {searchResults.projects.length > 0 && (
+                      <>
+                        <p className="px-3 py-1.5 text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Projects</p>
+                        {searchResults.projects.map((p: any) => (
+                          <Link key={p.id} href={`/dashboard/projects/${p.id}`} onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+                            className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent transition-colors">
+                            <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
+                            {p.name}
+                          </Link>
+                        ))}
+                      </>
+                    )}
+                    {searchResults.tasks.length > 0 && (
+                      <>
+                        <p className="px-3 py-1.5 text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Tasks</p>
+                        {searchResults.tasks.map((t: any) => (
+                          <Link key={t.id} href={`/dashboard/projects/${t.projectId}`} onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+                            className="flex items-center justify-between px-3 py-2 text-[13px] hover:bg-accent transition-colors">
+                            <span>{t.title}</span>
+                            <span className="text-[10px] text-muted-foreground">{t.project?.name}</span>
+                          </Link>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

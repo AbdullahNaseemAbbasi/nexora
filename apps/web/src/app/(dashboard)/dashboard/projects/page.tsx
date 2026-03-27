@@ -6,6 +6,7 @@ import { Plus, FolderKanban, Loader2, MoreHorizontal, Pencil, Archive, Trash2 } 
 import { Button } from "@/components/ui/button";
 import { useTenantStore } from "@/stores/tenant-store";
 import apiClient from "@/lib/api-client";
+import { toast } from "sonner";
 
 interface Project {
   id: string;
@@ -13,6 +14,7 @@ interface Project {
   description: string | null;
   status: string;
   createdAt: string;
+  progress: number;
   _count: { tasks: number };
 }
 
@@ -55,8 +57,10 @@ export default function ProjectsPage() {
       setNewDesc("");
       setShowForm(false);
       fetchProjects();
+      toast.success("Project created");
     } catch (err) {
       console.error("Failed to create project", err);
+      toast.error("Failed to create project");
     } finally {
       setCreating(false);
     }
@@ -67,8 +71,10 @@ export default function ProjectsPage() {
     try {
       await apiClient.delete(`/projects/${projectId}`);
       fetchProjects();
+      toast.success("Project deleted");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to delete project");
     }
   };
 
@@ -76,8 +82,10 @@ export default function ProjectsPage() {
     try {
       await apiClient.patch(`/projects/${projectId}`, { status: "ARCHIVED" });
       fetchProjects();
+      toast.success("Project archived");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to archive project");
     }
   };
 
@@ -182,7 +190,17 @@ export default function ProjectsPage() {
                   )}
                 </div>
               </Link>
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-4 shrink-0">
+                {/* Progress Bar */}
+                <div className="hidden sm:flex items-center gap-2 w-32">
+                  <div className="flex-1 h-1.5 bg-accent rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-foreground/40 rounded-full transition-all"
+                      style={{ width: `${project.progress}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground w-8">{project.progress}%</span>
+                </div>
                 <span className="text-xs text-muted-foreground">
                   {project._count.tasks} tasks
                 </span>

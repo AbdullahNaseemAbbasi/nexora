@@ -124,6 +124,25 @@ export class TenantsService {
     });
   }
 
+  // ===== LABELS =====
+
+  async createLabel(tenantId: string, name: string, color: string) {
+    return this.prisma.label.create({
+      data: { tenantId, name, color },
+    });
+  }
+
+  async getLabels(tenantId: string) {
+    return this.prisma.label.findMany({
+      where: { tenantId },
+      orderBy: { name: "asc" },
+    });
+  }
+
+  async deleteLabel(labelId: string) {
+    return this.prisma.label.delete({ where: { id: labelId } });
+  }
+
   // ===== INVITATIONS =====
 
   async inviteMember(tenantId: string, email: string, role?: string) {

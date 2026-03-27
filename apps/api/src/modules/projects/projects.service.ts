@@ -19,14 +19,24 @@ export class ProjectsService {
   }
 
   async findAllByTenant(tenantId: string) {
-    return this.prisma.project.findMany({
+    const projects = await this.prisma.project.findMany({
       where: { tenantId },
       include: {
         _count: {
           select: { tasks: true },
         },
+        tasks: {
+          select: { status: true },
+        },
       },
       orderBy: { createdAt: "desc" },
+    });
+
+    return projects.map((project) => {
+      const total = project.tasks.length;
+      const done = project.tasks.filter((t) => t.status === "DONE").length;
+      const { tasks, ...rest } = project;
+      return { ...rest, progress: total > 0 ? Math.round((done / total) * 100) : 0 };
     });
   }
 
@@ -48,6 +58,9 @@ export class ProjectsService {
                   },
                 },
               },
+            },
+            labels: {
+              include: { label: true },
             },
           },
         },

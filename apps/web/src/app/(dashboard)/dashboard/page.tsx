@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTenantStore } from "@/stores/tenant-store";
 import apiClient from "@/lib/api-client";
-import { Circle, CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
+import { Circle, CheckCircle2, ArrowRight, Loader2, Activity } from "lucide-react";
 
 interface Overview {
   totalProjects: number;
@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const currentTenant = useTenantStore((s) => s.currentTenant);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [tasks, setTasks] = useState<RecentTask[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,10 +52,12 @@ export default function DashboardPage() {
 
     const fetchData = async () => {
       try {
-        const [overviewRes, projectsRes] = await Promise.all([
+        const [overviewRes, projectsRes, activityRes] = await Promise.all([
           apiClient.get("/analytics/overview"),
           apiClient.get("/projects"),
+          apiClient.get("/analytics/activity").catch(() => ({ data: [] })),
         ]);
+        setActivities(activityRes.data || []);
         setOverview(overviewRes.data);
 
         // Get recent tasks from first project
@@ -140,6 +143,42 @@ export default function DashboardPage() {
                 </span>
                 <span className="text-xs text-muted-foreground w-24 text-right">
                   {statusLabel[task.status]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Activity Log */}
+      {activities.length > 0 && (
+        <div className="border border-border rounded-lg mt-6">
+          <div className="px-5 py-3.5 border-b border-border flex items-center gap-2">
+            <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Recent activity</h2>
+          </div>
+          <div>
+            {activities.slice(0, 10).map((activity: any, index: number) => (
+              <div
+                key={activity.id}
+                className={`flex items-center gap-3 px-5 py-2.5 ${
+                  index !== Math.min(activities.length, 10) - 1 ? "border-b border-border" : ""
+                }`}
+              >
+                <div className="h-6 w-6 bg-accent rounded-full flex items-center justify-center shrink-0">
+                  <span className="text-[9px] font-medium">
+                    {activity.user?.firstName?.[0]}{activity.user?.lastName?.[0]}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs">
+                    <span className="font-medium">{activity.user?.firstName} {activity.user?.lastName}</span>
+                    {" "}
+                    <span className="text-muted-foreground">{activity.action.replace(/_/g, " ")}</span>
+                  </p>
+                </div>
+                <span className="text-[10px] text-muted-foreground shrink-0">
+                  {new Date(activity.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
             ))}

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Send, Circle, CheckCircle2, Clock, Eye, Loader2, UserPlus, Trash2, Calendar, Pencil } from "lucide-react";
+import { X, Send, Circle, CheckCircle2, Clock, Eye, Loader2, UserPlus, Trash2, Calendar, Pencil, Gauge, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/api-client";
+import { toast } from "sonner";
 import { useTenantStore } from "@/stores/tenant-store";
 
 interface Comment {
@@ -13,17 +14,23 @@ interface Comment {
   user: { id: string; firstName: string; lastName: string };
 }
 
+interface TaskLabel {
+  label: { id: string; name: string; color: string };
+}
+
 interface TaskDetail {
   id: string;
   title: string;
   description: string | null;
   status: string;
   priority: string;
+  estimate: number | null;
   dueDate: string | null;
   createdAt: string;
   assignments: {
     user: { id: string; firstName: string; lastName: string; avatarUrl: string | null };
   }[];
+  labels: TaskLabel[];
   comments: Comment[];
 }
 
@@ -67,6 +74,8 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
   const [editingDesc, setEditingDesc] = useState(false);
   const [descValue, setDescValue] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState("");
 
   useEffect(() => {
     fetchTask();
@@ -99,8 +108,10 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
       await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, { status });
       fetchTask();
       onUpdate();
+      toast.success("Status updated");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to update status");
     }
   };
 
@@ -109,8 +120,10 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
       await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, { priority });
       fetchTask();
       onUpdate();
+      toast.success("Priority updated");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to update priority");
     }
   };
 
@@ -129,8 +142,10 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
       fetchTask();
       onUpdate();
       setShowAssign(false);
+      toast.success("Member assigned");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to assign member");
     }
   };
 
@@ -139,9 +154,22 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
       await apiClient.delete(`/projects/${projectId}/tasks/${taskId}/assign/${userId}`);
       fetchTask();
       onUpdate();
+      toast.success("Member unassigned");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to unassign member");
     }
+  };
+
+  const handleSaveTitle = async () => {
+    if (!titleValue.trim()) return;
+    try {
+      await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, { title: titleValue });
+      fetchTask();
+      onUpdate();
+      setEditingTitle(false);
+      toast.success("Title updated");
+    } catch { toast.error("Failed to update title"); }
   };
 
   const handleSaveDescription = async () => {
@@ -152,8 +180,10 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
       fetchTask();
       onUpdate();
       setEditingDesc(false);
+      toast.success("Description updated");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to update description");
     }
   };
 
@@ -165,9 +195,20 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
       });
       fetchTask();
       onUpdate();
+      toast.success("Due date updated");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to update due date");
     }
+  };
+
+  const handleEstimateChange = async (estimate: number | null) => {
+    try {
+      await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, { estimate });
+      fetchTask();
+      onUpdate();
+      toast.success("Estimate updated");
+    } catch { toast.error("Failed to update estimate"); }
   };
 
   const handleDelete = async () => {
@@ -176,8 +217,10 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
       await apiClient.delete(`/projects/${projectId}/tasks/${taskId}`);
       onUpdate();
       onClose();
+      toast.success("Task deleted");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to delete task");
     }
   };
 
@@ -191,8 +234,10 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
       });
       setNewComment("");
       fetchComments();
+      toast.success("Comment added");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to add comment");
     } finally {
       setSending(false);
     }
@@ -240,7 +285,27 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
         <div className="flex-1 overflow-y-auto">
           <div className="p-5 space-y-5">
             {/* Title */}
-            <h3 className="text-lg font-semibold">{task.title}</h3>
+            {editingTitle ? (
+              <div className="flex items-center gap-2">
+                <input
+                  value={titleValue}
+                  onChange={(e) => setTitleValue(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveTitle()}
+                  className="flex-1 text-lg font-semibold bg-accent rounded-lg px-2 py-1 outline-none"
+                  autoFocus
+                />
+                <Button size="sm" onClick={handleSaveTitle}>Save</Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingTitle(false)}>Cancel</Button>
+              </div>
+            ) : (
+              <h3
+                className="text-lg font-semibold cursor-pointer hover:bg-accent/50 rounded px-1 -mx-1 transition-colors"
+                onClick={() => { setEditingTitle(true); setTitleValue(task.title); }}
+                title="Click to edit title"
+              >
+                {task.title}
+              </h3>
+            )}
 
             {/* Description */}
             <div>
@@ -290,6 +355,50 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
                 className="h-9 bg-accent rounded-lg px-3 text-sm outline-none cursor-pointer"
               />
             </div>
+
+            {/* Estimate (Story Points) */}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                <Gauge className="h-3 w-3" />
+                Estimate
+              </p>
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 5, 8, 13].map((pts) => (
+                  <button
+                    key={pts}
+                    onClick={() => handleEstimateChange(task.estimate === pts ? null : pts)}
+                    className={`px-2.5 py-1 rounded text-xs transition-colors ${
+                      task.estimate === pts
+                        ? "bg-foreground text-background font-medium"
+                        : "bg-accent text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {pts}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Labels */}
+            {task.labels && task.labels.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <Tag className="h-3 w-3" />
+                  Labels
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {task.labels.map((tl) => (
+                    <span
+                      key={tl.label.id}
+                      className="text-xs px-2 py-0.5 rounded"
+                      style={{ backgroundColor: tl.label.color + "20", color: tl.label.color }}
+                    >
+                      {tl.label.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Status */}
             <div>

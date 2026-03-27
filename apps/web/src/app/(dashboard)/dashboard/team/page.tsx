@@ -5,6 +5,7 @@ import { Loader2, Shield, UserCog, User, Plus, Mail, Clock, Check, X, Copy, Link
 import { Button } from "@/components/ui/button";
 import { useTenantStore } from "@/stores/tenant-store";
 import apiClient from "@/lib/api-client";
+import { toast } from "sonner";
 
 interface Member {
   id: string;
@@ -61,8 +62,10 @@ export default function TeamPage() {
     try {
       await apiClient.patch(`/tenants/${currentTenant!.id}/members/${userId}`, { role: newRole });
       fetchData();
+      toast.success("Role updated");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to update role");
     }
   };
 
@@ -71,8 +74,10 @@ export default function TeamPage() {
     try {
       await apiClient.delete(`/tenants/${currentTenant!.id}/members/${userId}`);
       fetchData();
+      toast.success("Member removed");
     } catch (err) {
       console.error(err);
+      toast.error("Failed to remove member");
     }
   };
 
@@ -109,9 +114,12 @@ export default function TeamPage() {
       setInviteEmail("");
       setShowInvite(false);
       fetchData();
+      toast.success("Invitation sent");
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      setInviteError(error.response?.data?.message || "Failed to send invitation");
+      const errMsg = error.response?.data?.message || "Failed to send invitation";
+      setInviteError(errMsg);
+      toast.error(errMsg);
     } finally {
       setInviting(false);
     }

@@ -29,6 +29,7 @@ model User {
   taskComments      TaskComment[]
   notifications     Notification[]
   aiConversations   AiConversation[]
+  activities        Activity[]
 
   @@map("users")
 }
@@ -49,6 +50,7 @@ model Tenant {
   invitations   Invitation[]
   subscription  Subscription?
   notifications Notification[]
+  labels        Label[]
 
   @@map("tenants")
 }
@@ -117,6 +119,7 @@ model Task {
   priority    Priority   @default(MEDIUM)
   dueDate     DateTime?
   position    Int        @default(0)
+  estimate    Int?                         // Story points (1, 2, 3, 5, 8, 13)
   aiGenerated Boolean    @default(false)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -124,6 +127,7 @@ model Task {
   project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignments TaskAssignment[]
   comments    TaskComment[]
+  labels      TaskLabel[]
 
   @@index([tenantId])
   @@index([projectId, status])
@@ -287,4 +291,49 @@ enum NotificationType {
   PROJECT_UPDATE
   AI_SUGGESTION
   BILLING
+}
+
+// ==================== LABEL ====================
+
+model Label {
+  id       String @id @default(cuid())
+  tenantId String
+  name     String
+  color    String @default("#6b7280") // gray default
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tasks  TaskLabel[]
+
+  @@unique([tenantId, name])
+  @@map("labels")
+}
+
+model TaskLabel {
+  id      String @id @default(cuid())
+  taskId  String
+  labelId String
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, labelId])
+  @@map("task_labels")
+}
+
+// ==================== ACTIVITY LOG ====================
+
+model Activity {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  action    String              // "created_task", "moved_task", "commented", etc.
+  entity    String              // "task", "project", "member"
+  entityId  String
+  metadata  Json?               // extra details like { from: "TODO", to: "DONE" }
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@map("activities")
 }

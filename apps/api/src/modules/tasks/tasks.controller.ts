@@ -102,4 +102,22 @@ export class TasksController {
   ) {
     return this.tasksService.unassignUser(taskId, userId);
   }
+
+  // ===== LABELS =====
+
+  @Post(":id/labels")
+  async addLabel(
+    @Param("id") taskId: string,
+    @Body("labelId") labelId: string,
+  ) {
+    return this.tasksService.addLabel(taskId, labelId);
+  }
+
+  @Delete(":id/labels/:labelId")
+  async removeLabel(
+    @Param("id") taskId: string,
+    @Param("labelId") labelId: string,
+  ) {
+    return this.tasksService.removeLabel(taskId, labelId);
+  }
 }

@@ -86,6 +86,29 @@ export class TenantsController {
     return this.tenantsService.removeMember(tenantId, userId);
   }
 
+  // ===== LABELS =====
+
+  @UseGuards(TenantGuard)
+  @Post(":id/labels")
+  async createLabel(
+    @Param("id") tenantId: string,
+    @Body() body: { name: string; color: string },
+  ) {
+    return this.tenantsService.createLabel(tenantId, body.name, body.color);
+  }
+
+  @UseGuards(TenantGuard)
+  @Get(":id/labels")
+  async getLabels(@Param("id") tenantId: string) {
+    return this.tenantsService.getLabels(tenantId);
+  }
+
+  @UseGuards(TenantGuard)
+  @Delete(":id/labels/:labelId")
+  async deleteLabel(@Param("labelId") labelId: string) {
+    return this.tenantsService.deleteLabel(labelId);
+  }
+
   // ===== INVITATIONS =====
 
   @UseGuards(TenantGuard, RolesGuard)

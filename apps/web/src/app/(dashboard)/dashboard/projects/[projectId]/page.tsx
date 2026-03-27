@@ -26,9 +26,11 @@ import {
   Search,
   Filter,
   GripVertical,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/api-client";
+import { toast } from "sonner";
 import TaskDetailPanel from "@/components/tasks/task-detail-panel";
 
 interface Task {
@@ -38,6 +40,14 @@ interface Task {
   status: string;
   priority: string;
   position: number;
+  estimate: number | null;
+  dueDate: string | null;
+  assignments: {
+    user: { id: string; firstName: string; lastName: string; avatarUrl: string | null };
+  }[];
+  labels: {
+    label: { id: string; name: string; color: string };
+  }[];
 }
 
 interface Project {
@@ -103,21 +113,70 @@ function DraggableTask({
         isDragging ? "opacity-50 shadow-lg" : ""
       }`}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2" onClick={onClick}>
         {/* Drag Handle */}
         <button
           {...listeners}
           {...attributes}
+          onClick={(e) => e.stopPropagation()}
           className="mt-0.5 text-muted-foreground/30 hover:text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
         >
           <GripVertical className="h-3.5 w-3.5" />
         </button>
-        <div
-          className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${priorityDot[task.priority]}`}
-        />
-        <p className="text-sm leading-snug flex-1" onClick={onClick}>
-          {task.title}
-        </p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-1.5">
+            <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${priorityDot[task.priority]}`} />
+            <p className="text-sm leading-snug">{task.title}</p>
+          </div>
+
+          {/* Labels */}
+          {task.labels && task.labels.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5 ml-3.5">
+              {task.labels.map((tl) => (
+                <span
+                  key={tl.label.id}
+                  className="text-[10px] px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: tl.label.color + "20", color: tl.label.color }}
+                >
+                  {tl.label.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Bottom row — due date, estimate, assignees */}
+          <div className="flex items-center justify-between mt-2 ml-3.5">
+            <div className="flex items-center gap-2">
+              {task.dueDate && (
+                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Calendar className="h-2.5 w-2.5" />
+                  {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+              )}
+              {task.estimate && (
+                <span className="text-[10px] text-muted-foreground bg-accent px-1.5 py-0.5 rounded">
+                  {task.estimate}pt
+                </span>
+              )}
+            </div>
+            {/* Assignee avatars */}
+            {task.assignments && task.assignments.length > 0 && (
+              <div className="flex -space-x-1.5">
+                {task.assignments.slice(0, 3).map((a) => (
+                  <div
+                    key={a.user.id}
+                    className="h-5 w-5 bg-accent border border-background rounded-full flex items-center justify-center"
+                    title={`${a.user.firstName} ${a.user.lastName}`}
+                  >
+                    <span className="text-[8px] font-medium">
+                      {a.user.firstName[0]}{a.user.lastName[0]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -163,8 +222,10 @@ export default function ProjectDetailPage() {
       setNewTitle("");
       setShowForm(false);
       fetchProject();
+      toast.success("Task created");
     } catch (err) {
       console.error("Failed to create task", err);
+      toast.error("Failed to create task");
     } finally {
       setCreating(false);
     }
@@ -206,8 +267,10 @@ export default function ProjectDetailPage() {
       await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, {
         status: newStatus,
       });
+      toast.success("Task moved");
     } catch (err) {
       console.error("Failed to update task status", err);
+      toast.error("Failed to move task");
       fetchProject(); // Revert on error
     }
   };

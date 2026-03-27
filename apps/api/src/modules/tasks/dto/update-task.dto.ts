@@ -42,4 +42,9 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsInt()
   position?: number;
+
+  @ApiPropertyOptional({ example: 4 })
+  @IsOptional()
+  @IsInt()
+  estimate?: number;
 }
