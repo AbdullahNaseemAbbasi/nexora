@@ -7,12 +7,12 @@ import { TenantsModule } from "./modules/tenants/tenants.module";
 import { ProjectsModule } from "./modules/projects/projects.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { AiModule } from "./modules/ai/ai.module";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -20,6 +20,8 @@ import { AnalyticsModule } from "./modules/analytics/analytics.module";
     ProjectsModule,
     TasksModule,
     AnalyticsModule,
+    NotificationsModule,
+    AiModule,
   ],
 })
 export class AppModule {}

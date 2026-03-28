@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "next-themes";
@@ -18,6 +18,8 @@ import {
   Sun,
   Menu,
   Plus,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTenantStore } from "@/stores/tenant-store";
@@ -30,6 +32,15 @@ const sidebarLinks = [
   { href: "/dashboard/ai", label: "AI Assistant", icon: Sparkles },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
 
 export default function DashboardLayout({
   children,
@@ -50,7 +61,23 @@ export default function DashboardLayout({
   const [searchOpen, setSearchOpen] = useState(false);
   const [taskCounts, setTaskCounts] = useState({ total: 0, inProgress: 0 });
 
+  // Notifications state
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   useEffect(() => setMounted(true), []);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const [listRes, countRes] = await Promise.all([
+        apiClient.get("/notifications"),
+        apiClient.get("/notifications/count"),
+      ]);
+      setNotifications(listRes.data || []);
+      setUnreadCount(countRes.data?.count || 0);
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -61,7 +88,6 @@ export default function DashboardLayout({
 
     const init = async () => {
       try {
-        // Fetch user if not in store
         let userData = user;
         if (!userData) {
           const res = await apiClient.get("/auth/me");
@@ -69,17 +95,15 @@ export default function DashboardLayout({
           setAuth(res.data, token, refreshToken);
           userData = res.data;
         }
-        // Fetch tenants
         const tenantsRes = await apiClient.get("/tenants");
         setTenants(tenantsRes.data);
-        // Fetch task counts
         try {
           const overviewRes = await apiClient.get("/analytics/overview");
           setTaskCounts({
             total: overviewRes.data.totalTasks || 0,
             inProgress: overviewRes.data.inProgressTasks || 0,
           });
-        } catch { /* ignore if fails */ }
+        } catch { /* ignore */ }
         setLoading(false);
       } catch {
         logout();
@@ -89,6 +113,34 @@ export default function DashboardLayout({
 
     init();
   }, []);
+
+  // Fetch notifications when tenant is available
+  useEffect(() => {
+    if (currentTenant) {
+      fetchNotifications();
+      // Poll every 30s
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [currentTenant, fetchNotifications]);
+
+  const handleMarkRead = async (id: string) => {
+    try {
+      await apiClient.patch(`/notifications/${id}/read`);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch { /* ignore */ }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await apiClient.patch("/notifications/read-all");
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch { /* ignore */ }
+  };
 
   if (loading) {
     return (
@@ -111,6 +163,16 @@ export default function DashboardLayout({
   const handleLogout = () => {
     logout();
     router.push("/login");
+  };
+
+  const typeLabel: Record<string, string> = {
+    TASK_ASSIGNED: "Task assigned",
+    TASK_COMPLETED: "Task completed",
+    TASK_COMMENT: "New comment",
+    INVITATION: "Invitation",
+    PROJECT_UPDATE: "Project update",
+    AI_SUGGESTION: "AI suggestion",
+    BILLING: "Billing",
   };
 
   return (
@@ -144,7 +206,6 @@ export default function DashboardLayout({
             <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground ml-auto shrink-0 transition-transform ${orgDropdown ? "rotate-180" : ""}`} />
           </button>
 
-          {/* Dropdown */}
           {orgDropdown && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setOrgDropdown(false)} />
@@ -289,7 +350,7 @@ export default function DashboardLayout({
             </div>
           </div>
 
-          {/* Right side — Theme toggle + Bell */}
+          {/* Right side */}
           <div className="flex items-center gap-1">
             {mounted && (
               <button
@@ -304,10 +365,88 @@ export default function DashboardLayout({
                 )}
               </button>
             )}
-            <button className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors relative">
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 bg-primary rounded-full" />
-            </button>
+
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) fetchNotifications(); }}
+                className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors relative"
+                title="Notifications"
+              >
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0.5 right-0.5 h-4 w-4 bg-foreground text-background text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-background border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                      <p className="text-[13px] font-semibold">Notifications</p>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={handleMarkAllRead}
+                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <CheckCheck className="h-3 w-3" />
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+
+                    {/* List */}
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-8 text-center">
+                          <Bell className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
+                          <p className="text-[13px] text-muted-foreground">No notifications yet</p>
+                        </div>
+                      ) : (
+                        notifications.map((notif, index) => (
+                          <div
+                            key={notif.id}
+                            className={`flex items-start gap-3 px-4 py-3 hover:bg-accent/50 transition-colors cursor-pointer ${
+                              index !== notifications.length - 1 ? "border-b border-border" : ""
+                            } ${!notif.read ? "bg-accent/30" : ""}`}
+                            onClick={() => !notif.read && handleMarkRead(notif.id)}
+                          >
+                            {/* Unread dot */}
+                            <div className={`h-1.5 w-1.5 rounded-full mt-2 shrink-0 ${notif.read ? "bg-transparent" : "bg-foreground"}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-0.5">
+                                {typeLabel[notif.type] || notif.type}
+                              </p>
+                              <p className="text-[13px] font-medium leading-tight">{notif.title}</p>
+                              <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-2">{notif.message}</p>
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                {new Date(notif.createdAt).toLocaleString("en-US", {
+                                  month: "short", day: "numeric",
+                                  hour: "2-digit", minute: "2-digit",
+                                })}
+                              </p>
+                            </div>
+                            {!notif.read && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleMarkRead(notif.id); }}
+                                className="p-1 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                title="Mark as read"
+                              >
+                                <Check className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 

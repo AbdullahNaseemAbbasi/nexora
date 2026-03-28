@@ -31,10 +31,11 @@ export class TasksController {
   @Post()
   async create(
     @CurrentTenant() tenantId: string,
+    @CurrentUser("id") userId: string,
     @Param("projectId") projectId: string,
     @Body() dto: CreateTaskDto,
   ) {
-    return this.tasksService.create(tenantId, projectId, dto);
+    return this.tasksService.create(tenantId, projectId, dto, userId);
   }
 
   @Get()
@@ -54,15 +55,24 @@ export class TasksController {
   }
 
   @Patch(":id")
-  async update(@Param("id") id: string, @Body() dto: UpdateTaskDto) {
-    return this.tasksService.update(id, dto);
+  async update(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id") id: string,
+    @Body() dto: UpdateTaskDto,
+  ) {
+    return this.tasksService.update(id, dto, tenantId, userId);
   }
 
   @UseGuards(RolesGuard)
   @Roles("ADMIN", "MANAGER")
   @Delete(":id")
-  async remove(@Param("id") id: string) {
-    return this.tasksService.remove(id);
+  async remove(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id") id: string,
+  ) {
+    return this.tasksService.remove(id, tenantId, userId);
   }
 
   // ===== COMMENTS =====
@@ -74,11 +84,12 @@ export class TasksController {
 
   @Post(":id/comments")
   async addComment(
-    @Param("id") taskId: string,
+    @CurrentTenant() tenantId: string,
     @CurrentUser("id") userId: string,
+    @Param("id") taskId: string,
     @Body("content") content: string,
   ) {
-    return this.tasksService.addComment(taskId, userId, content);
+    return this.tasksService.addComment(taskId, userId, content, tenantId);
   }
 
   // ===== ASSIGNMENTS =====
@@ -87,20 +98,24 @@ export class TasksController {
   @UseGuards(RolesGuard)
   @Roles("ADMIN", "MANAGER")
   async assignUser(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser("id") actorId: string,
     @Param("id") taskId: string,
     @Body("userId") userId: string,
   ) {
-    return this.tasksService.assignUser(taskId, userId);
+    return this.tasksService.assignUser(taskId, userId, tenantId, actorId);
   }
 
   @Delete(":id/assign/:userId")
   @UseGuards(RolesGuard)
   @Roles("ADMIN", "MANAGER")
   async unassignUser(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser("id") actorId: string,
     @Param("id") taskId: string,
     @Param("userId") userId: string,
   ) {
-    return this.tasksService.unassignUser(taskId, userId);
+    return this.tasksService.unassignUser(taskId, userId, tenantId, actorId);
   }
 
   // ===== LABELS =====

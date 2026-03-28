@@ -14,6 +14,7 @@ import { TenantGuard } from "../../common/guards/tenant.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentTenant } from "../../common/decorators/current-tenant.decorator";
+import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ProjectsService } from "./projects.service";
 import { CreateProjectDto } from "./dto/create-project.dto";
 import { UpdateProjectDto } from "./dto/update-project.dto";
@@ -30,9 +31,10 @@ export class ProjectsController {
   @Post()
   async create(
     @CurrentTenant() tenantId: string,
+    @CurrentUser("id") userId: string,
     @Body() dto: CreateProjectDto,
   ) {
-    return this.projectsService.create(tenantId, dto);
+    return this.projectsService.create(tenantId, dto, userId);
   }
 
   @Get()
@@ -51,14 +53,23 @@ export class ProjectsController {
   @UseGuards(RolesGuard)
   @Roles("ADMIN", "MANAGER")
   @Patch(":id")
-  async update(@Param("id") id: string, @Body() dto: UpdateProjectDto) {
-    return this.projectsService.update(id, dto);
+  async update(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id") id: string,
+    @Body() dto: UpdateProjectDto,
+  ) {
+    return this.projectsService.update(id, dto, tenantId, userId);
   }
 
   @UseGuards(RolesGuard)
   @Roles("ADMIN")
   @Delete(":id")
-  async remove(@Param("id") id: string) {
-    return this.projectsService.remove(id);
+  async remove(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser("id") userId: string,
+    @Param("id") id: string,
+  ) {
+    return this.projectsService.remove(id, tenantId, userId);
   }
 }

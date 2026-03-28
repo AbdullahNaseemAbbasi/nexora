@@ -1,15 +1,26 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Priority, TaskStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { ActivityService } from "../analytics/activity.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { CreateTaskDto } from "./dto/create-task.dto";
 import { UpdateTaskDto } from "./dto/update-task.dto";
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityService: ActivityService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
-  async create(tenantId: string, projectId: string, dto: CreateTaskDto) {
-    return this.prisma.task.create({
+  async create(
+    tenantId: string,
+    projectId: string,
+    dto: CreateTaskDto,
+    actorId?: string,
+  ) {
+    const task = await this.prisma.task.create({
       data: {
         tenantId,
         projectId,
@@ -19,6 +30,16 @@ export class TasksService {
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       },
     });
+
+    if (actorId) {
+      this.activityService
+        .log(tenantId, actorId, "TASK_CREATED", "task", task.id, {
+          title: task.title,
+        })
+        .catch(() => null);
+    }
+
+    return task;
   }
 
   async findAllByProject(tenantId: string, projectId: string) {
@@ -36,6 +57,9 @@ export class TasksService {
               },
             },
           },
+        },
+        labels: {
+          include: { label: true },
         },
         _count: {
           select: { comments: true },
@@ -86,8 +110,13 @@ export class TasksService {
     return task;
   }
 
-  async update(id: string, dto: UpdateTaskDto) {
-    return this.prisma.task.update({
+  async update(
+    id: string,
+    dto: UpdateTaskDto,
+    tenantId?: string,
+    actorId?: string,
+  ) {
+    const task = await this.prisma.task.update({
       where: { id },
       data: {
         title: dto.title,
@@ -99,10 +128,33 @@ export class TasksService {
         estimate: dto.estimate,
       },
     });
+
+    if (tenantId && actorId) {
+      const action = dto.status ? "TASK_STATUS_CHANGED" : "TASK_UPDATED";
+      this.activityService
+        .log(tenantId, actorId, action, "task", task.id, {
+          title: task.title,
+          status: dto.status,
+        })
+        .catch(() => null);
+    }
+
+    return task;
   }
 
-  async remove(id: string) {
-    return this.prisma.task.delete({ where: { id } });
+  async remove(id: string, tenantId?: string, actorId?: string) {
+    const task = await this.prisma.task.findFirst({ where: { id } });
+    const result = await this.prisma.task.delete({ where: { id } });
+
+    if (tenantId && actorId && task) {
+      this.activityService
+        .log(tenantId, actorId, "TASK_DELETED", "task", id, {
+          title: task.title,
+        })
+        .catch(() => null);
+    }
+
+    return result;
   }
 
   // ===== COMMENTS =====
@@ -119,8 +171,13 @@ export class TasksService {
     });
   }
 
-  async addComment(taskId: string, userId: string, content: string) {
-    return this.prisma.taskComment.create({
+  async addComment(
+    taskId: string,
+    userId: string,
+    content: string,
+    tenantId?: string,
+  ) {
+    const comment = await this.prisma.taskComment.create({
       data: { taskId, userId, content },
       include: {
         user: {
@@ -128,25 +185,83 @@ export class TasksService {
         },
       },
     });
+
+    if (tenantId) {
+      this.activityService
+        .log(tenantId, userId, "TASK_COMMENTED", "task", taskId, {
+          commentId: comment.id,
+        })
+        .catch(() => null);
+    }
+
+    return comment;
   }
 
   // ===== ASSIGNMENTS =====
 
-  async assignUser(taskId: string, userId: string) {
-    return this.prisma.taskAssignment.create({
-      data: { taskId, userId },
+  async assignUser(
+    taskId: string,
+    assigneeId: string,
+    tenantId?: string,
+    actorId?: string,
+  ) {
+    const assignment = await this.prisma.taskAssignment.create({
+      data: { taskId, userId: assigneeId },
       include: {
         user: {
           select: { id: true, firstName: true, lastName: true, avatarUrl: true },
         },
       },
     });
+
+    if (tenantId && actorId) {
+      // Log activity
+      this.activityService
+        .log(tenantId, actorId, "TASK_ASSIGNED", "task", taskId, {
+          assigneeId,
+        })
+        .catch(() => null);
+
+      // Notify the assignee (only if different from actor)
+      if (assigneeId !== actorId) {
+        const task = await this.prisma.task
+          .findFirst({ where: { id: taskId } })
+          .catch(() => null);
+        this.notificationsService
+          .create({
+            userId: assigneeId,
+            tenantId,
+            type: "TASK_ASSIGNED",
+            title: "You were assigned to a task",
+            message: task ? `You have been assigned to "${task.title}"` : "You have been assigned to a task",
+            metadata: { taskId },
+          })
+          .catch(() => null);
+      }
+    }
+
+    return assignment;
   }
 
-  async unassignUser(taskId: string, userId: string) {
-    return this.prisma.taskAssignment.delete({
+  async unassignUser(
+    taskId: string,
+    userId: string,
+    tenantId?: string,
+    actorId?: string,
+  ) {
+    const result = await this.prisma.taskAssignment.delete({
       where: { taskId_userId: { taskId, userId } },
     });
+
+    if (tenantId && actorId) {
+      this.activityService
+        .log(tenantId, actorId, "TASK_UNASSIGNED", "task", taskId, {
+          userId,
+        })
+        .catch(() => null);
+    }
+
+    return result;
   }
 
   // ===== LABELS =====
