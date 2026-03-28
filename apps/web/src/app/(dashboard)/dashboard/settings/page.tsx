@@ -1,18 +1,79 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useTenantStore } from "@/stores/tenant-store";
 import { useAuthStore } from "@/stores/auth-store";
 import apiClient from "@/lib/api-client";
 import { toast } from "sonner";
-import { Loader2, Building2, Plus, User, Lock } from "lucide-react";
+import {
+  Loader2, Building2, Plus, User, Lock,
+  Sparkles, Zap, Crown, Check, ExternalLink, CreditCard,
+} from "lucide-react";
+
+interface Subscription {
+  plan: string;
+  status: string;
+  currentPeriodEnd: string | null;
+}
+
+const plans = [
+  {
+    key: "FREE",
+    label: "Free",
+    price: "$0",
+    period: "/month",
+    icon: <Sparkles className="h-4 w-4" />,
+    description: "Perfect for small teams getting started",
+    features: [
+      "Up to 3 projects",
+      "Up to 5 team members",
+      "Basic analytics",
+      "AI Assistant (limited)",
+    ],
+  },
+  {
+    key: "PRO",
+    label: "Pro",
+    price: "$12",
+    period: "/month",
+    icon: <Zap className="h-4 w-4" />,
+    description: "For growing teams that need more power",
+    features: [
+      "Unlimited projects",
+      "Up to 25 team members",
+      "Advanced analytics",
+      "Full AI Assistant access",
+      "Priority support",
+    ],
+    highlighted: true,
+  },
+  {
+    key: "ENTERPRISE",
+    label: "Enterprise",
+    price: "$49",
+    period: "/month",
+    icon: <Crown className="h-4 w-4" />,
+    description: "For large organizations with full control",
+    features: [
+      "Unlimited everything",
+      "Unlimited team members",
+      "Custom analytics",
+      "Dedicated AI usage",
+      "SLA & priority support",
+      "Custom integrations",
+    ],
+  },
+];
 
 export default function SettingsPage() {
-  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { currentTenant, setTenants } = useTenantStore();
+
+  // Subscription state
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   // Create workspace form
   const [showCreate, setShowCreate] = useState(false);
@@ -35,21 +96,54 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
+  useEffect(() => {
+    if (!currentTenant) return;
+    apiClient.get("/billing/subscription")
+      .then((res) => setSubscription(res.data))
+      .catch(() => null);
+  }, [currentTenant]);
+
+  const handleUpgrade = async (plan: "PRO" | "ENTERPRISE") => {
+    setCheckoutLoading(plan);
+    try {
+      const res = await apiClient.post("/billing/checkout", { plan });
+      if (res.data.url) {
+        window.location.href = res.data.url;
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to start checkout");
+    } finally {
+      setCheckoutLoading(null);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setPortalLoading(true);
+    try {
+      const res = await apiClient.post("/billing/portal");
+      if (res.data.url) {
+        window.location.href = res.data.url;
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "No billing account found");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orgName.trim() || !orgSlug.trim()) return;
     setCreating(true);
     try {
       await apiClient.post("/tenants", { name: orgName, slug: orgSlug });
-      // Refresh tenants
       const res = await apiClient.get("/tenants");
       setTenants(res.data);
       setOrgName("");
       setOrgSlug("");
       setShowCreate(false);
       toast.success("Workspace created");
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error("Failed to create workspace");
     } finally {
       setCreating(false);
@@ -77,9 +171,8 @@ export default function SettingsPage() {
       toast.success("Password changed");
       setCurrentPassword("");
       setNewPassword("");
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || "Failed to change password");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to change password");
     } finally {
       setChangingPassword(false);
     }
@@ -95,13 +188,14 @@ export default function SettingsPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       toast.success("Workspace updated");
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error("Failed to update workspace");
     } finally {
       setSaving(false);
     }
   };
+
+  const currentPlan = subscription?.plan || currentTenant?.plan || "FREE";
 
   return (
     <div className="max-w-2xl">
@@ -200,10 +294,107 @@ export default function SettingsPage() {
               </Button>
             </div>
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Plan</label>
-            <p className="text-sm mt-1">{currentTenant?.plan || "FREE"}</p>
+        </div>
+      </div>
+
+      {/* Billing / Plans */}
+      <div className="border border-border rounded-lg p-5 mb-6">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Plan & Billing</h2>
           </div>
+          {currentPlan !== "FREE" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleManageBilling}
+              disabled={portalLoading}
+            >
+              {portalLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <>
+                  <ExternalLink className="h-3 w-3 mr-1.5" />
+                  Manage billing
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+
+        <p className="text-xs text-muted-foreground mb-5">
+          Current plan: <span className="font-medium text-foreground">{currentPlan}</span>
+          {subscription?.currentPeriodEnd && (
+            <> · Renews {new Date(subscription.currentPeriodEnd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</>
+          )}
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {plans.map((plan) => {
+            const isCurrentPlan = currentPlan === plan.key;
+            const isHigher =
+              (currentPlan === "FREE" && (plan.key === "PRO" || plan.key === "ENTERPRISE")) ||
+              (currentPlan === "PRO" && plan.key === "ENTERPRISE");
+
+            return (
+              <div
+                key={plan.key}
+                className={`rounded-lg border p-4 flex flex-col gap-3 transition-colors ${
+                  plan.highlighted
+                    ? "border-foreground/40 bg-accent/30"
+                    : "border-border"
+                } ${isCurrentPlan ? "ring-1 ring-foreground/20" : ""}`}
+              >
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-muted-foreground">{plan.icon}</span>
+                    <span className="text-[13px] font-semibold">{plan.label}</span>
+                    {isCurrentPlan && (
+                      <span className="text-[10px] bg-foreground text-background px-1.5 py-0.5 rounded font-medium ml-auto">
+                        Current
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline gap-0.5">
+                    <span className="text-xl font-bold">{plan.price}</span>
+                    <span className="text-xs text-muted-foreground">{plan.period}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">{plan.description}</p>
+                </div>
+
+                <ul className="space-y-1.5 flex-1">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-1.5">
+                      <Check className="h-3 w-3 text-foreground/60 shrink-0 mt-0.5" />
+                      <span className="text-[11px] text-muted-foreground">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {isHigher && !isCurrentPlan && (
+                  <Button
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => handleUpgrade(plan.key as "PRO" | "ENTERPRISE")}
+                    disabled={checkoutLoading === plan.key}
+                  >
+                    {checkoutLoading === plan.key ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      `Upgrade to ${plan.label}`
+                    )}
+                  </Button>
+                )}
+                {isCurrentPlan && plan.key !== "FREE" && (
+                  <p className="text-[11px] text-center text-muted-foreground">Active plan</p>
+                )}
+                {plan.key === "FREE" && currentPlan === "FREE" && (
+                  <p className="text-[11px] text-center text-muted-foreground">Your current plan</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
