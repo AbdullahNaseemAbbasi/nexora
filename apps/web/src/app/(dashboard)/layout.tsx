@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "next-themes";
@@ -24,6 +24,7 @@ import {
 import { useAuthStore } from "@/stores/auth-store";
 import { useTenantStore } from "@/stores/tenant-store";
 import apiClient from "@/lib/api-client";
+import { getSocket } from "@/lib/socket";
 
 const sidebarLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -114,15 +115,28 @@ export default function DashboardLayout({
     init();
   }, []);
 
-  // Fetch notifications when tenant is available
+  // Fetch notifications + real-time socket when tenant is available
   useEffect(() => {
-    if (currentTenant) {
-      fetchNotifications();
-      // Poll every 30s
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [currentTenant, fetchNotifications]);
+    if (!currentTenant || !user) return;
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+
+    // Join tenant + user rooms for real-time events
+    const socket = getSocket();
+    socket.emit("join-tenant", currentTenant.id);
+    socket.emit("join-user", user.id);
+
+    socket.on("notification:new", (notif: Notification) => {
+      setNotifications((prev) => [notif, ...prev]);
+      setUnreadCount((c) => c + 1);
+    });
+
+    return () => {
+      clearInterval(interval);
+      socket.off("notification:new");
+    };
+  }, [currentTenant, user, fetchNotifications]);
 
   const handleMarkRead = async (id: string) => {
     try {

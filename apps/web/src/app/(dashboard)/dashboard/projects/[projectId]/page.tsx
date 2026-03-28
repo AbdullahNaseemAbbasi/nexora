@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { getSocket } from "@/lib/socket";
 import Link from "next/link";
 import {
   DndContext,
@@ -200,6 +201,43 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     fetchProject();
+
+    // Join project room for real-time updates
+    const socket = getSocket();
+    socket.emit("join-project", projectId);
+
+    socket.on("task:updated", (updatedTask: Task) => {
+      setProject((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          tasks: prev.tasks.map((t) => (t.id === updatedTask.id ? { ...t, ...updatedTask } : t)),
+        };
+      });
+    });
+
+    socket.on("task:created", (newTask: Task) => {
+      setProject((prev) => {
+        if (!prev) return prev;
+        // avoid duplicate
+        if (prev.tasks.find((t) => t.id === newTask.id)) return prev;
+        return { ...prev, tasks: [...prev.tasks, newTask] };
+      });
+    });
+
+    socket.on("task:deleted", ({ taskId }: { taskId: string }) => {
+      setProject((prev) => {
+        if (!prev) return prev;
+        return { ...prev, tasks: prev.tasks.filter((t) => t.id !== taskId) };
+      });
+    });
+
+    return () => {
+      socket.emit("leave-project", projectId);
+      socket.off("task:updated");
+      socket.off("task:created");
+      socket.off("task:deleted");
+    };
   }, [projectId]);
 
   const fetchProject = async () => {

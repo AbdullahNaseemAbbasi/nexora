@@ -10,6 +10,7 @@ import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { AiModule } from "./modules/ai/ai.module";
 import { BillingModule } from "./modules/billing/billing.module";
+import { RealtimeModule } from "./modules/realtime/realtime.module";
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { BillingModule } from "./modules/billing/billing.module";
     NotificationsModule,
     AiModule,
     BillingModule,
+    RealtimeModule,
   ],
 })
 export class AppModule {}

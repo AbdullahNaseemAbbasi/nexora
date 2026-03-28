@@ -3,6 +3,7 @@ import { Priority, TaskStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ActivityService } from "../analytics/activity.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { RealtimeGateway } from "../realtime/realtime.gateway";
 import { CreateTaskDto } from "./dto/create-task.dto";
 import { UpdateTaskDto } from "./dto/update-task.dto";
 
@@ -12,6 +13,7 @@ export class TasksService {
     private readonly prisma: PrismaService,
     private readonly activityService: ActivityService,
     private readonly notificationsService: NotificationsService,
+    private readonly realtime: RealtimeGateway,
   ) {}
 
   async create(
@@ -39,6 +41,7 @@ export class TasksService {
         .catch(() => null);
     }
 
+    this.realtime.emitTaskCreated(projectId, task);
     return task;
   }
 
@@ -139,6 +142,7 @@ export class TasksService {
         .catch(() => null);
     }
 
+    this.realtime.emitTaskUpdated(task.projectId, task);
     return task;
   }
 
@@ -154,6 +158,9 @@ export class TasksService {
         .catch(() => null);
     }
 
+    if (task) {
+      this.realtime.emitTaskDeleted(task.projectId, id);
+    }
     return result;
   }
 

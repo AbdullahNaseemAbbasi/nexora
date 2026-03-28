@@ -11,3 +11,4 @@ import { NotificationsModule } from "../notifications/notifications.module";
   exports: [TasksService],
 })
 export class TasksModule {}
+// RealtimeGateway is global — injected automatically via RealtimeModule
