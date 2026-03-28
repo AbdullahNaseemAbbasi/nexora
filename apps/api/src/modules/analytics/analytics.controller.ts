@@ -21,6 +21,11 @@ export class AnalyticsController {
     return this.analyticsService.getOverview(tenantId);
   }
 
+  @Get("detailed")
+  async getDetailed(@CurrentTenant() tenantId: string) {
+    return this.analyticsService.getDetailedStats(tenantId);
+  }
+
   @Get("search")
   async search(
     @CurrentTenant() tenantId: string,

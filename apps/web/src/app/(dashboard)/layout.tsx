@@ -20,6 +20,7 @@ import {
   Plus,
   Check,
   CheckCheck,
+  BarChart2,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTenantStore } from "@/stores/tenant-store";
@@ -30,6 +31,7 @@ const sidebarLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/projects", label: "Projects", icon: FolderKanban },
   { href: "/dashboard/team", label: "Team", icon: Users },
+  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart2 },
   { href: "/dashboard/ai", label: "AI Assistant", icon: Sparkles },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
