@@ -8,7 +8,7 @@ import apiClient from "@/lib/api-client";
 import { toast } from "sonner";
 import {
   Loader2, Building2, Plus, User, Lock,
-  Sparkles, Zap, Crown, Check, ExternalLink, CreditCard,
+  Sparkles, Zap, Crown, Check, ExternalLink, CreditCard, MailCheck,
 } from "lucide-react";
 
 interface Subscription {
@@ -95,6 +95,9 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+
+  // Email verification
+  const [resendingVerification, setResendingVerification] = useState(false);
 
   useEffect(() => {
     if (!currentTenant) return;
@@ -197,6 +200,18 @@ export default function SettingsPage() {
 
   const currentPlan = subscription?.plan || currentTenant?.plan || "FREE";
 
+  const handleResendVerification = async () => {
+    setResendingVerification(true);
+    try {
+      await apiClient.post("/auth/resend-verification");
+      toast.success("Verification email sent — check your inbox");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to send verification email");
+    } finally {
+      setResendingVerification(false);
+    }
+  };
+
   return (
     <div className="max-w-2xl">
       <h1 className="text-2xl font-semibold mb-1">Settings</h1>
@@ -231,7 +246,30 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="text-xs text-muted-foreground">Email</label>
-            <p className="text-sm mt-1 text-muted-foreground">{user?.email}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm text-muted-foreground">{user?.email}</p>
+              {user?.emailVerified ? (
+                <span className="flex items-center gap-1 text-[10px] text-green-500/70 bg-green-500/10 border border-green-500/20 px-1.5 py-0.5 rounded">
+                  <MailCheck className="h-2.5 w-2.5" /> Verified
+                </span>
+              ) : (
+                <span className="text-[10px] text-yellow-500/70 bg-yellow-500/10 border border-yellow-500/20 px-1.5 py-0.5 rounded">
+                  Unverified
+                </span>
+              )}
+            </div>
+            {!user?.emailVerified && (
+              <button
+                onClick={handleResendVerification}
+                disabled={resendingVerification}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-1 flex items-center gap-1"
+              >
+                {resendingVerification ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : null}
+                Resend verification email
+              </button>
+            )}
           </div>
           <Button size="sm" onClick={handleUpdateProfile} disabled={savingProfile}>
             {savingProfile ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}

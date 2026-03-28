@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -17,7 +18,7 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -119,9 +120,9 @@ export default function LoginPage() {
                 <input type="checkbox" className="h-3.5 w-3.5 rounded border-white/20 bg-white/5 accent-white" />
                 <span className="text-xs text-white/40">Remember me</span>
               </label>
-              <button type="button" className="text-xs text-white/40 hover:text-white/70 transition-colors">
+              <Link href="/forgot-password" className="text-xs text-white/40 hover:text-white/70 transition-colors">
                 Forgot password?
-              </button>
+              </Link>
             </div>
 
             {/* Submit */}
@@ -151,5 +152,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

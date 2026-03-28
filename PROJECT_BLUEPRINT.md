@@ -995,93 +995,213 @@ NODE_ENV="development"
 
 ---
 
-## 12. Implementation Phases
+## 12. Linear.app Comparison — What Nexora Has vs What's Missing
 
-### Phase 1: Foundation (Setup + Auth)
+> This section tracks Nexora's feature parity with Linear.app (the gold standard for project management SaaS).
+
+### ✅ Already Built (Phases 1–7)
+
+| Feature | Linear Equivalent | Status |
+| ------- | ----------------- | ------ |
+| Multi-tenant workspaces | Workspaces | ✅ Done |
+| Invite members by email | Invite team | ✅ Done |
+| Role-based access (Admin/Manager/Member) | Admin/Member roles | ✅ Done |
+| Project CRUD | Teams + Projects | ✅ Done |
+| Task CRUD with priorities | Issues | ✅ Done |
+| Kanban board (drag-and-drop) | Board view | ✅ Done |
+| Task detail panel (description, assign, due date, labels) | Issue detail | ✅ Done |
+| Task comments | Issue comments | ✅ Done |
+| Task labels/tags | Labels | ✅ Done |
+| Task title inline edit | Inline edit | ✅ Done |
+| Task search + priority filter | Filters | ✅ Done |
+| Real-time updates (WebSocket) | Live sync | ✅ Done |
+| In-app notifications (bell + badge) | Notification inbox | ✅ Done |
+| AI task suggestions | Linear AI | ✅ Done |
+| AI summarize | Linear AI | ✅ Done |
+| AI chat assistant | Linear AI | ✅ Done |
+| Analytics dashboard | Insights | ✅ Done |
+| Stripe billing (Free/Pro/Enterprise) | Linear billing | ✅ Done |
+| Profile edit + password change | Profile settings | ✅ Done |
+| Global search | Command + search | ✅ Done |
+
+### ❌ Missing — Planned in New Phases Below
+
+| Missing Feature | Linear Equivalent | Priority | Phase |
+| --------------- | ----------------- | -------- | ----- |
+| Forgot password + reset email | Account recovery | 🔴 High | 8 |
+| Email verification on register | Email verify | 🔴 High | 8 |
+| Google OAuth | Google login | 🟡 Medium | 8 |
+| "My Tasks" personal view | My Issues | 🔴 High | 9 |
+| Activity feed UI (already logged in DB) | Activity log | 🟡 Medium | 9 |
+| Toast/Command palette (⌘K) | Command menu | 🟡 Medium | 9 |
+| Keyboard shortcuts | Keyboard shortcuts | 🟢 Low | 9 |
+| Task list view (table layout) | List view | 🟡 Medium | 10 |
+| Sub-tasks (nested tasks) | Sub-issues | 🟡 Medium | 10 |
+| Task relations (blocks / related to) | Issue relations | 🟢 Low | 10 |
+| Task templates | Templates | 🟢 Low | 10 |
+| File attachments on tasks | Attachments | 🟡 Medium | 11 |
+| @mentions in comments | Mentions | 🟡 Medium | 11 |
+| Emoji reactions on comments | Reactions | 🟢 Low | 11 |
+| Sprint / Cycle planning | Cycles | 🟡 Medium | 12 |
+| Project milestones | Milestones | 🟢 Low | 12 |
+| Timeline / Gantt view | Timeline view | 🟢 Low | 12 |
+| Custom workflow statuses per project | Custom states | 🟢 Low | 12 |
+| Super admin panel | N/A (internal) | 🟡 Medium | 13 |
+| Marketing landing page | Linear.app home | 🔴 High | 13 |
+| Light/dark theme toggle | System/manual | 🟡 Medium | 13 |
+| Email notifications (Nodemailer) | Email notifs | 🟡 Medium | 8 |
+| Plan limits enforcement in API | Quota checks | 🔴 High | 9 |
+| Project archive UI | Archive project | 🟢 Low | 9 |
+| CSV data export | Export | 🟢 Low | 13 |
+| Mobile responsive improvements | Mobile app | 🟡 Medium | 14 |
+| Deploy (Vercel + Railway) | Hosted SaaS | 🔴 High | 14 |
+
+---
+
+## 13. Implementation Phases
+
+### Phase 1: Foundation (Setup + Auth) ✅ COMPLETE
 - Monorepo setup (Turborepo + pnpm)
 - Docker Compose (PostgreSQL + Redis)
 - NestJS project scaffolding
 - Next.js project scaffolding
 - Prisma schema + initial migration
 - Authentication (register, login, JWT, refresh tokens)
-- Email verification
 - Basic frontend pages (login, register)
 
-### Phase 2: Multi-Tenant Core
+### Phase 2: Multi-Tenant Core ✅ COMPLETE
 - Tenant (organization) CRUD
 - Tenant membership system
-- Invitation system (invite by email)
+- Invitation system (invite by email, token-based join)
 - Role-based access control (guards + decorators)
 - Tenant switching on frontend
-- Tenant middleware/interceptor
+- Workspace settings (edit name, upload logo)
 
-### Phase 3: Project Management
+### Phase 3: Project Management ✅ COMPLETE
 - Project CRUD
-- Task CRUD with status management
-- Task assignment system
+- Task CRUD with full detail panel
+- Task assignment + unassign
 - Task comments
-- Drag-and-drop Kanban board (frontend)
-- Task filtering and search
+- Task labels (create, assign, color-coded)
+- Drag-and-drop Kanban board (dnd-kit)
+- Task search + priority filter
+- Inline task title editing
 
-### Phase 4: AI Features
-- Ollama setup and integration
-- LangChain.js setup
-- AI task suggestion feature
-- AI summarization feature
-- AI project chat assistant
-- AI auto-categorization
-- Streaming AI responses
+### Phase 4: AI Features ✅ COMPLETE
+- Groq API integration (LLaMA 3.3-70b, free tier)
+- AI task suggestion from goal + context
+- AI text summarization
+- AI chat assistant with quick prompts
 
-### Phase 5: Billing & Subscriptions
+### Phase 5: Billing & Subscriptions ✅ COMPLETE
 - Stripe integration (test mode)
-- Checkout flow
-- Subscription management
-- Plan limits enforcement
-- Billing portal
-- Webhook handling
+- Free / Pro ($12) / Enterprise ($49) plans
+- Checkout session flow → Stripe hosted page
+- Customer billing portal
+- Settings page with plan cards
 
-### Phase 6: Notifications & Real-Time
-- In-app notification system
-- WebSocket setup (NestJS Gateway)
-- Real-time task updates
-- Email notifications (using Ethereal for dev)
-- Notification preferences
+### Phase 6: Real-Time (WebSockets) ✅ COMPLETE
+- Socket.io NestJS Gateway
+- Tenant + Project + User rooms
+- Live task:created / task:updated / task:deleted events
+- notification:new event with UI bell update
 
-### Phase 7: Analytics & Admin
-- Tenant analytics dashboard
-- Project-level statistics
-- Super admin panel
-- Platform-wide metrics
-- Data visualization (Recharts)
+### Phase 7: Analytics Dashboard ✅ COMPLETE
+- 4 stat cards (total, completed, in-progress, completion rate)
+- Tasks by Status donut chart (Recharts PieChart)
+- Tasks by Priority bar chart
+- 7-Day Task Trend line chart
+- Top Assignees horizontal bar chart
+- Project Progress bars
 
-### Phase 8: Polish & Deploy
-- Responsive design pass
-- Loading states and error handling
-- Landing page + marketing pages
-- Docker production setup
-- CI/CD pipeline (GitHub Actions)
-- Deploy frontend (Vercel)
-- Deploy backend (Railway)
-- Final testing and documentation
+### Phase 8: Auth Completion + Email System
+- Forgot password flow (request reset → email link → reset form)
+- Email verification on registration (Nodemailer + Ethereal for dev)
+- Resend verification email button in settings
+- Google OAuth (Passport.js google strategy)
+- Email notifications for: task assigned, task commented, invitation received
+- Notification preference toggles (in-app vs email per type)
+
+### Phase 9: Power User Features + UX Gaps
+- "My Tasks" page — personal view showing all tasks assigned to logged-in user across projects
+- Activity feed page — UI for the activity_log already stored in DB
+- Plan limits enforcement — API guards for member/project/task counts per plan
+- Project archive/unarchive with archived projects section
+- Copy link to task (clipboard)
+- Duplicate task feature
+- Keyboard shortcut: `N` = new task, `Escape` = close panel, `C` = comment focus
+
+### Phase 10: List View + Sub-tasks + Relations
+- Task list view (table layout alongside existing Kanban board — toggle switch)
+- Sub-tasks — nested tasks under a parent task (parent_task_id FK in DB)
+- Sub-task progress indicator on parent card
+- Task relations: "blocks" / "is blocked by" / "related to"
+- Task templates — save a task configuration as reusable template
+- Bulk task actions (select multiple → change status/priority)
+
+### Phase 11: Attachments + Rich Comments
+- File attachments on tasks (upload to local storage or S3-compatible)
+- Image preview in task detail panel
+- @mention system in comments (type @ to get member autocomplete)
+- Notification triggered when @mentioned
+- Emoji reactions on comments (👍 ✅ 🔥 etc.)
+- Rich text editor for task descriptions (markdown or tiptap)
+
+### Phase 12: Sprints + Milestones + Custom Workflow
+- Sprint/Cycle planning — define start/end dates, add tasks to a sprint
+- Sprint velocity chart in analytics
+- Project milestones — named checkpoints with due dates
+- Custom workflow statuses per project (rename/add columns)
+- Timeline view (horizontal Gantt chart for tasks with due dates)
+- Project-level AI chat with full project context (tasks + activity)
+
+### Phase 13: Super Admin + Landing Page + Polish
+- Super admin panel (separate route, isSuperAdmin guard)
+  - View all tenants, users, platform stats
+  - Manually change tenant plan
+  - Impersonate / suspend account
+- Marketing landing page (/, /pricing, /features)
+  - Hero section, feature highlights, pricing table
+  - CTA → Register
+- Light/dark theme toggle (stored in user preferences + localStorage)
+- CSV export for tasks and analytics data
+- Improved mobile responsive layout (sidebar collapses, bottom nav on mobile)
+- Empty states and improved error handling across all pages
+
+### Phase 14: Deploy & Production Readiness
+- Environment variable audit + secrets management
+- Stripe webhook wiring with deployed URL
+- Docker production Dockerfiles (multi-stage builds)
+- CI/CD pipeline (GitHub Actions: lint + test on PR, deploy on merge to main)
+- Deploy backend → Railway (with PostgreSQL add-on)
+- Deploy frontend → Vercel
+- Custom domain setup
+- README.md + documentation update
 
 ---
 
-## 13. What You Will Learn (Learning Outcomes)
+## 14. What You Will Learn (Learning Outcomes)
 
 | Phase | Skills Gained |
 | ----- | ------------- |
 | Phase 1 | Monorepo management, NestJS fundamentals, Prisma ORM, JWT auth |
 | Phase 2 | Multi-tenant architecture, RBAC, middleware/guards pattern |
-| Phase 3 | CRUD patterns, relational data modeling, Kanban UI, drag-and-drop |
-| Phase 4 | AI integration, prompt engineering, LangChain, streaming responses |
-| Phase 5 | Payment integration, webhooks, subscription logic |
-| Phase 6 | WebSockets, real-time architecture, event-driven patterns |
-| Phase 7 | Data aggregation, charting, admin panel design |
-| Phase 8 | Docker, CI/CD, cloud deployment, production readiness |
+| Phase 3 | CRUD patterns, relational data modeling, Kanban UI, dnd-kit drag-and-drop |
+| Phase 4 | AI API integration, prompt engineering, Groq/LLM usage, free AI APIs |
+| Phase 5 | Payment integration, Stripe checkout/portal, subscription logic |
+| Phase 6 | WebSockets, Socket.io, real-time architecture, event-driven patterns |
+| Phase 7 | Data aggregation queries, Recharts, analytics UX design |
+| Phase 8 | Nodemailer, OAuth (Passport.js), email flows, token expiry patterns |
+| Phase 9 | Feature flags, plan limit enforcement, UX polish, keyboard accessibility |
+| Phase 10 | Recursive data structures (sub-tasks), graph relations, table UI |
+| Phase 11 | File upload (multipart/S3), rich text editors, mention parsing |
+| Phase 12 | Sprint/iteration planning UX, Gantt chart, custom workflow design |
+| Phase 13 | Admin panel architecture, landing page conversion design, theming |
+| Phase 14 | Docker multi-stage builds, CI/CD, cloud deployment, production config |
 
 ---
 
-## 14. Commands Quick Reference
+## 15. Commands Quick Reference
 
 ```bash
 # Install dependencies

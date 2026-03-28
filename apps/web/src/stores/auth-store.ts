@@ -6,7 +6,8 @@ interface User {
   firstName: string;
   lastName: string;
   avatarUrl?: string | null;
-  isSuperAdmin: boolean;
+  emailVerified?: boolean;
+  isSuperAdmin?: boolean;
 }
 
 interface AuthState {

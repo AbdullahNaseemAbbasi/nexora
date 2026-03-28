@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --filter api build)",
+      "Bash(pnpm --filter web build)"
+    ]
+  }
+}
