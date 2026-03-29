@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { ProjectStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ActivityService } from "../analytics/activity.service";
@@ -13,6 +13,19 @@ export class ProjectsService {
   ) {}
 
   async create(tenantId: string, dto: CreateProjectDto, actorId?: string) {
+    // Check plan project limit
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const limits: Record<string, number> = { FREE: 3, PRO: Infinity, ENTERPRISE: Infinity };
+    const limit = limits[tenant?.plan || "FREE"];
+    if (limit !== Infinity) {
+      const count = await this.prisma.project.count({ where: { tenantId } });
+      if (count >= limit) {
+        throw new BadRequestException(
+          `Project limit reached for your plan (${limit} projects). Upgrade to create more.`,
+        );
+      }
+    }
+
     const project = await this.prisma.project.create({
       data: {
         tenantId,

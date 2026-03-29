@@ -21,6 +21,8 @@ import {
   Check,
   CheckCheck,
   BarChart2,
+  ListTodo,
+  Activity,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTenantStore } from "@/stores/tenant-store";
@@ -29,9 +31,11 @@ import { getSocket } from "@/lib/socket";
 
 const sidebarLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/my-tasks", label: "My Tasks", icon: ListTodo },
   { href: "/dashboard/projects", label: "Projects", icon: FolderKanban },
   { href: "/dashboard/team", label: "Team", icon: Users },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart2 },
+  { href: "/dashboard/activity", label: "Activity", icon: Activity },
   { href: "/dashboard/ai", label: "AI Assistant", icon: Sparkles },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];

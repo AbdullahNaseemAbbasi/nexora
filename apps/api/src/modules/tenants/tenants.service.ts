@@ -9,6 +9,12 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CreateTenantDto } from "./dto/create-tenant.dto";
 import { UpdateTenantDto } from "./dto/update-tenant.dto";
 
+const PLAN_LIMITS = {
+  FREE: { members: 5, projects: 3 },
+  PRO: { members: 25, projects: Infinity },
+  ENTERPRISE: { members: Infinity, projects: Infinity },
+};
+
 @Injectable()
 export class TenantsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -146,6 +152,18 @@ export class TenantsService {
   // ===== INVITATIONS =====
 
   async inviteMember(tenantId: string, email: string, role?: string) {
+    // Check plan member limit
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const limit = PLAN_LIMITS[tenant?.plan || "FREE"].members;
+    if (limit !== Infinity) {
+      const currentCount = await this.prisma.tenantMember.count({ where: { tenantId } });
+      if (currentCount >= limit) {
+        throw new BadRequestException(
+          `Member limit reached for your plan (${limit} members). Upgrade to add more members.`,
+        );
+      }
+    }
+
     // Check if already a member
     const existingUser = await this.prisma.user.findUnique({ where: { email } });
     if (existingUser) {

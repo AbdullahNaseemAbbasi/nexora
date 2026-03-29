@@ -1,9 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RealtimeGateway } from "../realtime/realtime.gateway";
 
 @Injectable()
 export class ActivityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   async log(
     tenantId: string,
@@ -13,9 +17,17 @@ export class ActivityService {
     entityId: string,
     metadata?: any,
   ) {
-    return this.prisma.activity.create({
+    const activity = await this.prisma.activity.create({
       data: { tenantId, userId, action, entity, entityId, metadata },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true } },
+      },
     });
+
+    // Emit to all users in the tenant room in real-time
+    this.realtime.emitActivity(tenantId, activity);
+
+    return activity;
   }
 
   async getByTenant(tenantId: string, limit = 20) {

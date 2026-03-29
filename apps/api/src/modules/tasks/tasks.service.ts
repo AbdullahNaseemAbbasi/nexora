@@ -271,6 +271,30 @@ export class TasksService {
     return result;
   }
 
+  // ===== MY TASKS =====
+
+  async findMyTasks(tenantId: string, userId: string) {
+    return this.prisma.task.findMany({
+      where: {
+        tenantId,
+        assignments: { some: { userId } },
+      },
+      include: {
+        project: { select: { id: true, name: true } },
+        assignments: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, avatarUrl: true },
+            },
+          },
+        },
+        labels: { include: { label: true } },
+        _count: { select: { comments: true } },
+      },
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    });
+  }
+
   // ===== LABELS =====
 
   async addLabel(taskId: string, labelId: string) {
