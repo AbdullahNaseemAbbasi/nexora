@@ -4,7 +4,8 @@
       "Bash(pnpm --filter api build)",
       "Bash(pnpm --filter web build)",
       "Bash(npx tsc:*)",
-      "Read(//c/Users/TS/.claude/projects/c--Users-TS-Documents-GitHub-AI-Powered-Multi-Tenant-SaaS-Platform/memory/**)"
+      "Read(//c/Users/TS/.claude/projects/c--Users-TS-Documents-GitHub-AI-Powered-Multi-Tenant-SaaS-Platform/memory/**)",
+      "Bash(npx prisma:*)"
     ],
     "additionalDirectories": [
       "c:\\Users\\TS\\.claude\\projects\\c--Users-TS-Documents-GitHub-AI-Powered-Multi-Tenant-SaaS-Platform\\memory"

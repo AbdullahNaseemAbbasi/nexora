@@ -110,24 +110,27 @@ enum ProjectStatus {
 // ==================== TASK ====================
 
 model Task {
-  id          String     @id @default(cuid())
-  projectId   String
-  tenantId    String
-  title       String
-  description String?
-  status      TaskStatus @default(TODO)
-  priority    Priority   @default(MEDIUM)
-  dueDate     DateTime?
-  position    Int        @default(0)
-  estimate    Int?                         // Story points (1, 2, 3, 5, 8, 13)
-  aiGenerated Boolean    @default(false)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id           String     @id @default(cuid())
+  projectId    String
+  tenantId     String
+  title        String
+  description  String?
+  status       TaskStatus @default(TODO)
+  priority     Priority   @default(MEDIUM)
+  dueDate      DateTime?
+  position     Int        @default(0)
+  estimate     Int?                         // Story points (1, 2, 3, 5, 8, 13)
+  aiGenerated  Boolean    @default(false)
+  parentTaskId String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignments TaskAssignment[]
   comments    TaskComment[]
   labels      TaskLabel[]
+  parent      Task?            @relation("SubTasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subTasks    Task[]           @relation("SubTasks")
 
   @@index([tenantId])
   @@index([projectId, status])

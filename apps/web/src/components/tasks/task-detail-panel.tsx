@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { X, Send, Circle, CheckCircle2, Clock, Eye, Loader2, UserPlus, Trash2, Calendar, Pencil, Gauge, Tag, Link2, Copy } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { getSocket } from "@/lib/socket";
+import { X, Send, Circle, CheckCircle2, Clock, Eye, Loader2, UserPlus, Trash2, Calendar, Pencil, Gauge, Tag, Link2, Copy, Plus, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/api-client";
 import { toast } from "sonner";
@@ -18,6 +19,12 @@ interface TaskLabel {
   label: { id: string; name: string; color: string };
 }
 
+interface SubTask {
+  id: string;
+  title: string;
+  status: string;
+}
+
 interface TaskDetail {
   id: string;
   title: string;
@@ -32,6 +39,7 @@ interface TaskDetail {
   }[];
   labels: TaskLabel[];
   comments: Comment[];
+  subTasks: SubTask[];
 }
 
 const statuses = [
@@ -76,11 +84,39 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
   const [dueDate, setDueDate] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
+  const [newSubTask, setNewSubTask] = useState("");
+  const [addingSubTask, setAddingSubTask] = useState(false);
 
   useEffect(() => {
     fetchTask();
     fetchComments();
     if (currentTenant) fetchTeamMembers();
+  }, [taskId]);
+
+  // Real-time: listen for task updates and new comments
+  useEffect(() => {
+    const socket = getSocket();
+
+    const handleTaskUpdated = (updatedTask: { id: string }) => {
+      if (updatedTask.id === taskId) fetchTask();
+    };
+
+    const handleTaskComment = ({ taskId: tid, comment }: { taskId: string; comment: Comment }) => {
+      if (tid === taskId) {
+        setComments((prev) => {
+          if (prev.find((c) => c.id === comment.id)) return prev;
+          return [...prev, comment];
+        });
+      }
+    };
+
+    socket.on("task:updated", handleTaskUpdated);
+    socket.on("task:comment", handleTaskComment);
+
+    return () => {
+      socket.off("task:updated", handleTaskUpdated);
+      socket.off("task:comment", handleTaskComment);
+    };
   }, [taskId]);
 
   const fetchTask = async () => {
@@ -231,6 +267,34 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
       toast.success("Task duplicated");
     } catch {
       toast.error("Failed to duplicate task");
+    }
+  };
+
+  const handleAddSubTask = async () => {
+    if (!newSubTask.trim()) return;
+    setAddingSubTask(true);
+    try {
+      await apiClient.post(`/projects/${projectId}/tasks`, {
+        title: newSubTask,
+        parentTaskId: taskId,
+      });
+      setNewSubTask("");
+      fetchTask();
+    } catch {
+      toast.error("Failed to add sub-task");
+    } finally {
+      setAddingSubTask(false);
+    }
+  };
+
+  const handleSubTaskToggle = async (subTaskId: string, done: boolean) => {
+    try {
+      await apiClient.patch(`/projects/${projectId}/tasks/${subTaskId}`, {
+        status: done ? "DONE" : "TODO",
+      });
+      fetchTask();
+    } catch {
+      toast.error("Failed to update sub-task");
     }
   };
 
@@ -551,6 +615,72 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
                 <Trash2 className="h-3 w-3" />
                 Delete
               </button>
+            </div>
+
+            {/* Sub-tasks */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <CheckSquare className="h-3 w-3" />
+                  Sub-tasks
+                  {task.subTasks.length > 0 && (
+                    <span className="ml-1 opacity-50">
+                      {task.subTasks.filter((s) => s.status === "DONE").length}/{task.subTasks.length}
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              {/* Progress bar */}
+              {task.subTasks.length > 0 && (
+                <div className="h-1 bg-accent rounded-full mb-2 overflow-hidden">
+                  <div
+                    className="h-full bg-green-500/60 rounded-full transition-all"
+                    style={{
+                      width: `${(task.subTasks.filter((s) => s.status === "DONE").length / task.subTasks.length) * 100}%`,
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Sub-task list */}
+              <div className="space-y-1 mb-2">
+                {task.subTasks.map((sub) => (
+                  <div key={sub.id} className="flex items-center gap-2 group">
+                    <button
+                      onClick={() => handleSubTaskToggle(sub.id, sub.status !== "DONE")}
+                      className="shrink-0"
+                    >
+                      {sub.status === "DONE" ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                      ) : (
+                        <Circle className="h-3.5 w-3.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors" />
+                      )}
+                    </button>
+                    <span className={`text-sm flex-1 ${sub.status === "DONE" ? "line-through text-muted-foreground/50" : ""}`}>
+                      {sub.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add sub-task input */}
+              <div className="flex items-center gap-2">
+                <input
+                  value={newSubTask}
+                  onChange={(e) => setNewSubTask(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddSubTask()}
+                  placeholder="Add sub-task..."
+                  className="flex-1 h-8 bg-accent rounded-lg px-3 text-xs outline-none placeholder:text-muted-foreground/40"
+                />
+                <button
+                  onClick={handleAddSubTask}
+                  disabled={addingSubTask || !newSubTask.trim()}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-accent hover:bg-foreground/10 transition-colors disabled:opacity-40"
+                >
+                  {addingSubTask ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                </button>
+              </div>
             </div>
 
             {/* Divider */}

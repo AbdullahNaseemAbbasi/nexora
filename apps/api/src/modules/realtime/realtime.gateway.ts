@@ -90,4 +90,9 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   emitActivity(tenantId: string, activity: any) {
     this.server.to(`tenant:${tenantId}`).emit("activity:new", activity);
   }
+
+  // Emit new comment to project room
+  emitTaskComment(projectId: string, taskId: string, comment: any) {
+    this.server.to(`project:${projectId}`).emit("task:comment", { taskId, comment });
+  }
 }

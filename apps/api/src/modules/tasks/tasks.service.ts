@@ -32,6 +32,7 @@ export class TasksService {
         status: dto.status ? (dto.status as any) : undefined,
         estimate: dto.estimate ?? undefined,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+        parentTaskId: dto.parentTaskId ?? undefined,
       },
     });
 
@@ -104,6 +105,14 @@ export class TasksService {
         },
         labels: {
           include: { label: true },
+        },
+        subTasks: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+          },
+          orderBy: { createdAt: "asc" },
         },
       },
     });
@@ -185,6 +194,7 @@ export class TasksService {
     userId: string,
     content: string,
     tenantId?: string,
+    projectId?: string,
   ) {
     const comment = await this.prisma.taskComment.create({
       data: { taskId, userId, content },
@@ -194,6 +204,10 @@ export class TasksService {
         },
       },
     });
+
+    if (projectId) {
+      this.realtime.emitTaskComment(projectId, taskId, comment);
+    }
 
     if (tenantId) {
       this.activityService

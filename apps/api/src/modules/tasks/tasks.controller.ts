@@ -86,10 +86,11 @@ export class TasksController {
   async addComment(
     @CurrentTenant() tenantId: string,
     @CurrentUser("id") userId: string,
+    @Param("projectId") projectId: string,
     @Param("id") taskId: string,
     @Body("content") content: string,
   ) {
-    return this.tasksService.addComment(taskId, userId, content, tenantId);
+    return this.tasksService.addComment(taskId, userId, content, tenantId, projectId);
   }
 
   // ===== ASSIGNMENTS =====
