@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  UseGuards,
-} from "@nestjs/common";
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { TenantGuard } from "../../common/guards/tenant.guard";
@@ -39,18 +30,12 @@ export class TasksController {
   }
 
   @Get()
-  async findAll(
-    @CurrentTenant() tenantId: string,
-    @Param("projectId") projectId: string,
-  ) {
+  async findAll(@CurrentTenant() tenantId: string, @Param("projectId") projectId: string) {
     return this.tasksService.findAllByProject(tenantId, projectId);
   }
 
   @Get(":id")
-  async findOne(
-    @CurrentTenant() tenantId: string,
-    @Param("id") id: string,
-  ) {
+  async findOne(@CurrentTenant() tenantId: string, @Param("id") id: string) {
     return this.tasksService.findById(tenantId, id);
   }
 
@@ -75,8 +60,6 @@ export class TasksController {
     return this.tasksService.remove(id, tenantId, userId);
   }
 
-  // ===== COMMENTS =====
-
   @Get(":id/comments")
   async getComments(@Param("id") taskId: string) {
     return this.tasksService.getComments(taskId);
@@ -92,8 +75,6 @@ export class TasksController {
   ) {
     return this.tasksService.addComment(taskId, userId, content, tenantId, projectId);
   }
-
-  // ===== ASSIGNMENTS =====
 
   @Post(":id/assign")
   @UseGuards(RolesGuard)
@@ -119,21 +100,13 @@ export class TasksController {
     return this.tasksService.unassignUser(taskId, userId, tenantId, actorId);
   }
 
-  // ===== LABELS =====
-
   @Post(":id/labels")
-  async addLabel(
-    @Param("id") taskId: string,
-    @Body("labelId") labelId: string,
-  ) {
+  async addLabel(@Param("id") taskId: string, @Body("labelId") labelId: string) {
     return this.tasksService.addLabel(taskId, labelId);
   }
 
   @Delete(":id/labels/:labelId")
-  async removeLabel(
-    @Param("id") taskId: string,
-    @Param("labelId") labelId: string,
-  ) {
+  async removeLabel(@Param("id") taskId: string, @Param("labelId") labelId: string) {
     return this.tasksService.removeLabel(taskId, labelId);
   }
 }

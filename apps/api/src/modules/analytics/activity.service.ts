@@ -9,33 +9,20 @@ export class ActivityService {
     private readonly realtime: RealtimeGateway,
   ) {}
 
-  async log(
-    tenantId: string,
-    userId: string,
-    action: string,
-    entity: string,
-    entityId: string,
-    metadata?: any,
-  ) {
+  async log(tenantId: string, userId: string, action: string, entity: string, entityId: string, metadata?: any) {
     const activity = await this.prisma.activity.create({
       data: { tenantId, userId, action, entity, entityId, metadata },
-      include: {
-        user: { select: { id: true, firstName: true, lastName: true } },
-      },
+      include: { user: { select: { id: true, firstName: true, lastName: true } } },
     });
 
-    // Emit to all users in the tenant room in real-time
     this.realtime.emitActivity(tenantId, activity);
-
     return activity;
   }
 
   async getByTenant(tenantId: string, limit = 20) {
     return this.prisma.activity.findMany({
       where: { tenantId },
-      include: {
-        user: { select: { id: true, firstName: true, lastName: true } },
-      },
+      include: { user: { select: { id: true, firstName: true, lastName: true } } },
       orderBy: { createdAt: "desc" },
       take: limit,
     });

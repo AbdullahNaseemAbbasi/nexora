@@ -42,6 +42,9 @@ docker-compose.override.yml
 # Test coverage
 coverage/
 
+# Claude Code (local dev tool)
+.claude/
+
 # Misc
 *.tsbuildinfo
 *.log

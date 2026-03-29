@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { Role } from "@prisma/client";
 import { randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -20,80 +16,40 @@ export class TenantsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateTenantDto) {
-    // Create tenant and add creator as ADMIN
-    const tenant = await this.prisma.tenant.create({
+    return this.prisma.tenant.create({
       data: {
         name: dto.name,
         slug: dto.slug,
-        members: {
-          create: {
-            userId,
-            role: "ADMIN",
-          },
-        },
+        members: { create: { userId, role: "ADMIN" } },
       },
       include: {
         members: {
           include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
+            user: { select: { id: true, email: true, firstName: true, lastName: true } },
           },
         },
       },
     });
-
-    return tenant;
   }
 
   async findAllByUser(userId: string) {
     return this.prisma.tenant.findMany({
-      where: {
-        members: {
-          some: { userId },
-        },
-      },
-      include: {
-        _count: {
-          select: {
-            members: true,
-            projects: true,
-          },
-        },
-      },
+      where: { members: { some: { userId } } },
+      include: { _count: { select: { members: true, projects: true } } },
     });
   }
 
   async findById(id: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id },
-      include: {
-        _count: {
-          select: {
-            members: true,
-            projects: true,
-          },
-        },
-      },
+      include: { _count: { select: { members: true, projects: true } } },
     });
-
-    if (!tenant) {
-      throw new NotFoundException("Organization not found");
-    }
-
+    if (!tenant) throw new NotFoundException("Organization not found");
     return tenant;
   }
 
   async update(id: string, dto: UpdateTenantDto) {
-    return this.prisma.tenant.update({
-      where: { id },
-      data: dto,
-    });
+    return this.prisma.tenant.update({ where: { id }, data: dto });
   }
 
   async remove(id: string) {
@@ -105,13 +61,7 @@ export class TenantsService {
       where: { tenantId },
       include: {
         user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            avatarUrl: true,
-          },
+          select: { id: true, email: true, firstName: true, lastName: true, avatarUrl: true },
         },
       },
     });
@@ -130,29 +80,19 @@ export class TenantsService {
     });
   }
 
-  // ===== LABELS =====
-
   async createLabel(tenantId: string, name: string, color: string) {
-    return this.prisma.label.create({
-      data: { tenantId, name, color },
-    });
+    return this.prisma.label.create({ data: { tenantId, name, color } });
   }
 
   async getLabels(tenantId: string) {
-    return this.prisma.label.findMany({
-      where: { tenantId },
-      orderBy: { name: "asc" },
-    });
+    return this.prisma.label.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
   }
 
   async deleteLabel(labelId: string) {
     return this.prisma.label.delete({ where: { id: labelId } });
   }
 
-  // ===== INVITATIONS =====
-
   async inviteMember(tenantId: string, email: string, role?: string) {
-    // Check plan member limit
     const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
     const limit = PLAN_LIMITS[tenant?.plan || "FREE"].members;
     if (limit !== Infinity) {
@@ -164,36 +104,24 @@ export class TenantsService {
       }
     }
 
-    // Check if already a member
     const existingUser = await this.prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       const existingMember = await this.prisma.tenantMember.findUnique({
         where: { userId_tenantId: { userId: existingUser.id, tenantId } },
       });
-      if (existingMember) {
-        throw new BadRequestException("User is already a member of this workspace");
-      }
+      if (existingMember) throw new BadRequestException("User is already a member of this workspace");
     }
 
-    // Check if invitation already pending
     const existing = await this.prisma.invitation.findFirst({
       where: { tenantId, email, status: "PENDING" },
     });
-    if (existing) {
-      throw new BadRequestException("Invitation already sent to this email");
-    }
+    if (existing) throw new BadRequestException("Invitation already sent to this email");
 
     const token = randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     return this.prisma.invitation.create({
-      data: {
-        tenantId,
-        email,
-        role: (role as Role) || "MEMBER",
-        token,
-        expiresAt,
-      },
+      data: { tenantId, email, role: (role as Role) || "MEMBER", token, expiresAt },
     });
   }
 
@@ -205,17 +133,9 @@ export class TenantsService {
   }
 
   async acceptInvitation(token: string, userId: string) {
-    const invitation = await this.prisma.invitation.findUnique({
-      where: { token },
-    });
-
-    if (!invitation) {
-      throw new NotFoundException("Invitation not found");
-    }
-
-    if (invitation.status !== "PENDING") {
-      throw new BadRequestException("Invitation already used");
-    }
+    const invitation = await this.prisma.invitation.findUnique({ where: { token } });
+    if (!invitation) throw new NotFoundException("Invitation not found");
+    if (invitation.status !== "PENDING") throw new BadRequestException("Invitation already used");
 
     if (new Date() > invitation.expiresAt) {
       await this.prisma.invitation.update({
@@ -225,16 +145,10 @@ export class TenantsService {
       throw new BadRequestException("Invitation has expired");
     }
 
-    // Add user as member
     await this.prisma.tenantMember.create({
-      data: {
-        userId,
-        tenantId: invitation.tenantId,
-        role: invitation.role,
-      },
+      data: { userId, tenantId: invitation.tenantId, role: invitation.role },
     });
 
-    // Mark invitation as accepted
     await this.prisma.invitation.update({
       where: { id: invitation.id },
       data: { status: "ACCEPTED" },

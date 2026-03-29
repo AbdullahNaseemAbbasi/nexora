@@ -12,14 +12,10 @@ export class AiService {
     this.model = this.config.get<string>("GROQ_MODEL") || "llama-3.3-70b-versatile";
   }
 
-  private async callGroq(
-    systemPrompt: string,
-    userMessage: string,
-    maxTokens = 1024,
-  ): Promise<string> {
+  private async callGroq(systemPrompt: string, userMessage: string, maxTokens = 1024): Promise<string> {
     if (!this.apiKey || this.apiKey === "your-groq-api-key-here") {
       throw new BadRequestException(
-        "GROQ_API_KEY not configured. Please add your Groq API key to .env file. Get a free key at console.groq.com",
+        "GROQ_API_KEY not configured. Get a free key at console.groq.com",
       );
     }
 
@@ -59,17 +55,11 @@ Rules:
 - No numbering, no descriptions, just titles
 Example output: ["Set up project repository", "Design database schema", "Build authentication API"]`;
 
-    const userMsg = context
-      ? `Goal: ${goal}\nAdditional context: ${context}`
-      : `Goal: ${goal}`;
-
+    const userMsg = context ? `Goal: ${goal}\nAdditional context: ${context}` : `Goal: ${goal}`;
     const raw = await this.callGroq(system, userMsg, 512);
 
-    // Parse the JSON array from the response
     const match = raw.match(/\[[\s\S]*\]/);
-    if (!match) {
-      return { tasks: [] };
-    }
+    if (!match) return { tasks: [] };
 
     try {
       const tasks = JSON.parse(match[0]) as string[];
@@ -80,19 +70,12 @@ Example output: ["Set up project repository", "Design database schema", "Build a
   }
 
   async summarize(text: string): Promise<{ summary: string }> {
-    const system = `You are a concise summarization assistant. Summarize the given text in 2-4 sentences.
-Be clear, factual, and preserve the key points. Do not add commentary.`;
-
+    const system = `You are a concise summarization assistant. Summarize the given text in 2-4 sentences. Be clear, factual, and preserve the key points. Do not add commentary.`;
     const summary = await this.callGroq(system, text, 300);
     return { summary: summary.trim() };
   }
 
-  async chat(
-    message: string,
-    tenantId: string,
-    userId: string,
-    projectContext?: string,
-  ): Promise<{ reply: string }> {
+  async chat(message: string, _tenantId: string, _userId: string, projectContext?: string): Promise<{ reply: string }> {
     const system = `You are a helpful project management assistant for a SaaS platform called Nexora.
 You help teams manage projects, tasks, and workflows effectively.
 ${projectContext ? `Current project context: ${projectContext}` : ""}
