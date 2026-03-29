@@ -29,6 +29,8 @@ export class TasksService {
         title: dto.title,
         description: dto.description,
         priority: (dto.priority || "MEDIUM") as Priority,
+        status: dto.status ? (dto.status as any) : undefined,
+        estimate: dto.estimate ?? undefined,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       },
     });

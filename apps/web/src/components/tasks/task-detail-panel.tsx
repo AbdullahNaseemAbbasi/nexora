@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Send, Circle, CheckCircle2, Clock, Eye, Loader2, UserPlus, Trash2, Calendar, Pencil, Gauge, Tag } from "lucide-react";
+import { X, Send, Circle, CheckCircle2, Clock, Eye, Loader2, UserPlus, Trash2, Calendar, Pencil, Gauge, Tag, Link2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/api-client";
 import { toast } from "sonner";
@@ -211,6 +211,29 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
     } catch { toast.error("Failed to update estimate"); }
   };
 
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/dashboard/projects/${projectId}?task=${taskId}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard");
+  };
+
+  const handleDuplicate = async () => {
+    if (!task) return;
+    try {
+      await apiClient.post(`/projects/${projectId}/tasks`, {
+        title: `${task.title} (copy)`,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        estimate: task.estimate,
+      });
+      onUpdate();
+      toast.success("Task duplicated");
+    } catch {
+      toast.error("Failed to duplicate task");
+    }
+  };
+
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this task?")) return;
     try {
@@ -276,9 +299,25 @@ export default function TaskDetailPanel({ taskId, projectId, onClose, onUpdate }
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
           <h2 className="text-sm font-semibold">Task details</h2>
-          <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors">
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleCopyLink}
+              title="Copy link to task"
+              className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={handleDuplicate}
+              title="Duplicate task"
+              className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}

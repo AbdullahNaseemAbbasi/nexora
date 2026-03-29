@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, Suspense } from "react";
 import { createPortal } from "react-dom";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { getSocket } from "@/lib/socket";
 import Link from "next/link";
 import {
@@ -354,14 +354,17 @@ function DraggableTask({
   );
 }
 
-export default function ProjectDetailPage() {
+function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const searchParams = useSearchParams();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(
+    searchParams.get("task")
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -411,6 +414,24 @@ export default function ProjectDetailPage() {
       socket.off("task:deleted");
     };
   }, [projectId]);
+
+  // Keyboard shortcuts: N = new task, Escape = close panel
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        setShowForm(true);
+      }
+      if (e.key === "Escape") {
+        setSelectedTaskId(null);
+        setShowForm(false);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const fetchProject = async () => {
     try {
@@ -674,5 +695,13 @@ export default function ProjectDetailPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function ProjectDetailPageWrapper() {
+  return (
+    <Suspense>
+      <ProjectDetailPage />
+    </Suspense>
   );
 }

@@ -3,6 +3,9 @@ import {
   IsOptional,
   IsEnum,
   IsDateString,
+  IsInt,
+  Min,
+  Max,
   MinLength,
   MaxLength,
 } from "class-validator";
@@ -25,6 +28,18 @@ export class CreateTaskDto {
   @IsOptional()
   @IsEnum(["LOW", "MEDIUM", "HIGH", "URGENT"])
   priority?: string;
+
+  @ApiPropertyOptional({ enum: ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"] })
+  @IsOptional()
+  @IsEnum(["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"])
+  status?: string;
+
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  estimate?: number;
 
   @ApiPropertyOptional({ example: "2026-04-15" })
   @IsOptional()
