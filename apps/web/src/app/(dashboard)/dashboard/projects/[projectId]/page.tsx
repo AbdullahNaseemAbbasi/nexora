@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { getSocket } from "@/lib/socket";
 import Link from "next/link";
@@ -28,6 +29,10 @@ import {
   Filter,
   GripVertical,
   Calendar,
+  LayoutGrid,
+  List,
+  ChevronDown,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/api-client";
@@ -73,6 +78,172 @@ const priorityDot: Record<string, string> = {
   HIGH: "bg-foreground/70",
   URGENT: "bg-foreground",
 };
+
+// ===== LIST VIEW =====
+
+const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+  TODO:        { label: "To Do",       icon: <Circle className="h-3 w-3" />,       color: "text-zinc-400" },
+  IN_PROGRESS: { label: "In Progress", icon: <Clock className="h-3 w-3" />,        color: "text-blue-400" },
+  IN_REVIEW:   { label: "In Review",   icon: <Eye className="h-3 w-3" />,          color: "text-purple-400" },
+  DONE:        { label: "Done",        icon: <CheckCircle2 className="h-3 w-3" />, color: "text-green-400" },
+};
+
+const PRIORITY_COLORS: Record<string, string> = {
+  URGENT: "text-red-400 bg-red-400/10",
+  HIGH:   "text-orange-400 bg-orange-400/10",
+  MEDIUM: "text-yellow-400 bg-yellow-400/10",
+  LOW:    "text-zinc-500 bg-zinc-500/10",
+};
+
+function StatusDropdown({
+  taskId,
+  currentStatus,
+  onStatusChange,
+}: {
+  taskId: string;
+  currentStatus: string;
+  onStatusChange: (taskId: string, status: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const sc = STATUS_CONFIG[currentStatus];
+
+  const handleOpen = () => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpen((v) => !v);
+  };
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={handleOpen}
+        className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded border border-transparent hover:border-border transition-colors whitespace-nowrap ${sc.color}`}
+      >
+        {sc.icon}
+        <span>{sc.label}</span>
+        <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+      </button>
+
+      {open && typeof document !== "undefined" && createPortal(
+        <>
+          <div className="fixed inset-0 z-[90]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[100] bg-background border border-border rounded-lg shadow-2xl py-1 min-w-[140px]"
+            style={{ top: menuPos.top, left: menuPos.left }}
+          >
+            {Object.entries(STATUS_CONFIG).map(([key, s]) => (
+              <button
+                key={key}
+                onClick={async () => {
+                  setOpen(false);
+                  await onStatusChange(taskId, key);
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent transition-colors ${s.color} ${currentStatus === key ? "bg-accent" : ""}`}
+              >
+                {s.icon} {s.label}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
+      )}
+    </>
+  );
+}
+
+function ListView({
+  tasks, projectId, onTaskClick, onStatusChange,
+}: {
+  tasks: Task[];
+  projectId: string;
+  onTaskClick: (id: string) => void;
+  onStatusChange: (taskId: string, status: string) => Promise<void>;
+}) {
+  if (tasks.length === 0) {
+    return (
+      <div className="border border-border rounded-lg p-12 text-center">
+        <p className="text-sm text-muted-foreground">No tasks match your filters.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-border rounded-lg">
+      {/* Table Header */}
+      <div className="grid grid-cols-[1fr_140px_90px_110px_80px] gap-2 px-4 py-2 bg-accent/40 border-b border-border text-xs text-muted-foreground font-medium rounded-t-lg">
+        <span>Task</span>
+        <span>Status</span>
+        <span>Priority</span>
+        <span>Assignees</span>
+        <span>Due</span>
+      </div>
+
+      {/* Rows */}
+      <div className="divide-y divide-border">
+        {tasks.map((task) => {
+          const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "DONE";
+          return (
+            <div
+              key={task.id}
+              className="grid grid-cols-[1fr_140px_90px_110px_80px] gap-2 px-4 py-2.5 hover:bg-accent/30 transition-colors items-center last:rounded-b-lg"
+            >
+              {/* Title */}
+              <button
+                onClick={() => onTaskClick(task.id)}
+                className={`text-sm text-left truncate hover:underline ${task.status === "DONE" ? "line-through text-muted-foreground" : ""}`}
+              >
+                {task.title}
+              </button>
+
+              {/* Status — fixed-position dropdown */}
+              <StatusDropdown
+                taskId={task.id}
+                currentStatus={task.status}
+                onStatusChange={onStatusChange}
+              />
+
+              {/* Priority */}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium w-fit ${PRIORITY_COLORS[task.priority]}`}>
+                {task.priority.charAt(0) + task.priority.slice(1).toLowerCase()}
+              </span>
+
+              {/* Assignees */}
+              <div className="flex -space-x-1.5">
+                {task.assignments.slice(0, 3).map((a) => (
+                  <div
+                    key={a.user.id}
+                    title={`${a.user.firstName} ${a.user.lastName}`}
+                    className="h-5 w-5 bg-accent border border-background rounded-full flex items-center justify-center"
+                  >
+                    <span className="text-[8px] font-medium">
+                      {a.user.firstName[0]}{a.user.lastName[0]}
+                    </span>
+                  </div>
+                ))}
+                {task.assignments.length === 0 && (
+                  <span className="text-xs text-muted-foreground/40">—</span>
+                )}
+              </div>
+
+              {/* Due date */}
+              <span className={`text-[11px] ${isOverdue ? "text-red-400" : "text-muted-foreground"}`}>
+                {task.dueDate
+                  ? new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                  : <span className="text-muted-foreground/40">—</span>
+                }
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // Droppable Column
 function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
@@ -194,6 +365,7 @@ export default function ProjectDetailPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [viewMode, setViewMode] = useState<"board" | "list">("board");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -345,10 +517,29 @@ export default function ProjectDetailPage() {
             )}
           </div>
         </div>
-        <Button size="sm" onClick={() => setShowForm(!showForm)}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          New task
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex items-center border border-border rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode("board")}
+              className={`p-1.5 rounded transition-colors ${viewMode === "board" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+              title="Board view"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-1.5 rounded transition-colors ${viewMode === "list" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+              title="List view"
+            >
+              <List className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <Button size="sm" onClick={() => setShowForm(!showForm)}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            New task
+          </Button>
+        </div>
       </div>
 
       {/* Create Task Form */}
@@ -402,8 +593,26 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
+      {/* List View */}
+      {viewMode === "list" && (
+        <ListView
+          tasks={project.tasks
+            .filter((t) => !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()))
+            .filter((t) => !priorityFilter || t.priority === priorityFilter)}
+          projectId={projectId}
+          onTaskClick={(id) => setSelectedTaskId(id)}
+          onStatusChange={async (taskId, newStatus) => {
+            setProject((prev) => prev ? {
+              ...prev,
+              tasks: prev.tasks.map((t) => t.id === taskId ? { ...t, status: newStatus } : t),
+            } : prev);
+            await apiClient.patch(`/projects/${projectId}/tasks/${taskId}`, { status: newStatus });
+          }}
+        />
+      )}
+
       {/* Kanban Board with Drag & Drop */}
-      <DndContext
+      {viewMode === "board" && <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
@@ -453,7 +662,7 @@ export default function ProjectDetailPage() {
             </div>
           ) : null}
         </DragOverlay>
-      </DndContext>
+      </DndContext>}
 
       {/* Task Detail Panel */}
       {selectedTaskId && (
