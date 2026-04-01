@@ -45,7 +45,7 @@ export default function DashboardPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [tasks, setTasks] = useState<RecentTask[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!currentTenant) { setLoading(false); return; }

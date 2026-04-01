@@ -71,7 +71,7 @@ function groupByDate(items: ActivityItem[]) {
 export default function ActivityPage() {
   const { currentTenant } = useTenantStore();
   const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [limit, setLimit] = useState(50);
   const [refreshing, setRefreshing] = useState(false);
 

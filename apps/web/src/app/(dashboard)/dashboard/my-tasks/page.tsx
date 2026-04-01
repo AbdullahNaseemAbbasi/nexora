@@ -40,7 +40,7 @@ const STATUS_ORDER = ["IN_PROGRESS", "IN_REVIEW", "TODO", "DONE"];
 export default function MyTasksPage() {
   const { currentTenant } = useTenantStore();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<string>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 

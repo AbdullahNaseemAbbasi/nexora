@@ -21,7 +21,7 @@ interface Project {
 export default function ProjectsPage() {
   const currentTenant = useTenantStore((s) => s.currentTenant);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
