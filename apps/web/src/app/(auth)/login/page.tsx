@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuthStore } from "@/stores/auth-store";
+import { useTenantStore } from "@/stores/tenant-store";
 import apiClient from "@/lib/api-client";
 import { Mail, Lock, Loader2 } from "lucide-react";
 
@@ -22,6 +23,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const setTenants = useTenantStore((state) => state.setTenants);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -38,6 +40,11 @@ function LoginForm() {
       const response = await apiClient.post("/auth/login", data);
       const { user, accessToken, refreshToken } = response.data;
       setAuth(user, accessToken, refreshToken);
+      // Prefetch tenants before redirect so dashboard loads instantly
+      try {
+        const tenantsRes = await apiClient.get("/tenants");
+        setTenants(tenantsRes.data || []);
+      } catch {}
       const redirect = searchParams.get("redirect");
       router.push(redirect || "/dashboard");
     } catch (err: unknown) {

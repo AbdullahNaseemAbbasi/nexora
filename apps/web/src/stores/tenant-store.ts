@@ -16,6 +16,7 @@ interface TenantState {
   currentTenant: Tenant | null;
   setTenants: (tenants: Tenant[]) => void;
   setCurrentTenant: (tenant: Tenant) => void;
+  hydrate: () => boolean;
 }
 
 export const useTenantStore = create<TenantState>((set) => ({
@@ -23,8 +24,8 @@ export const useTenantStore = create<TenantState>((set) => ({
   currentTenant: null,
 
   setTenants: (tenants) => {
+    localStorage.setItem("tenants", JSON.stringify(tenants));
     set({ tenants });
-    // Auto-select first tenant if none selected
     const savedId = localStorage.getItem("currentTenantId");
     const found = tenants.find((t) => t.id === savedId);
     if (found) {
@@ -38,5 +39,21 @@ export const useTenantStore = create<TenantState>((set) => ({
   setCurrentTenant: (tenant) => {
     localStorage.setItem("currentTenantId", tenant.id);
     set({ currentTenant: tenant });
+  },
+
+  hydrate: () => {
+    try {
+      const tenantsStr = localStorage.getItem("tenants");
+      if (tenantsStr) {
+        const tenants = JSON.parse(tenantsStr);
+        if (tenants.length > 0) {
+          const savedId = localStorage.getItem("currentTenantId");
+          const found = tenants.find((t: Tenant) => t.id === savedId);
+          set({ tenants, currentTenant: found || tenants[0] });
+          return true;
+        }
+      }
+    } catch {}
+    return false;
   },
 }));

@@ -49,6 +49,7 @@ export default function RegisterPage() {
       });
       const { user, accessToken, refreshToken } = response.data;
       setAuth(user, accessToken, refreshToken);
+      // New user has no tenants yet, redirect to dashboard where workspace creation screen shows
       router.push("/dashboard");
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };

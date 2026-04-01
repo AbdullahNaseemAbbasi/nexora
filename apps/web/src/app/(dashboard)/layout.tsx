@@ -109,8 +109,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const { user, setAuth, logout } = useAuthStore();
-  const { tenants, currentTenant, setTenants, setCurrentTenant } = useTenantStore();
+  const { user, setAuth, logout, hydrate: hydrateAuth } = useAuthStore();
+  const { tenants, currentTenant, setTenants, setCurrentTenant, hydrate: hydrateTenants } = useTenantStore();
   const [loading, setLoading] = useState(true);
   const [noTenant, setNoTenant] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -141,18 +141,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const token = localStorage.getItem("accessToken");
     if (!token) { router.push("/login"); return; }
 
-    const init = async () => {
-      try {
-        // If user already cached in store, show UI immediately
-        if (user) {
-          const tenantsRes = await apiClient.get("/tenants");
-          const tenantList = tenantsRes.data || [];
-          setTenants(tenantList);
-          if (tenantList.length === 0) { setNoTenant(true); }
-          setLoading(false);
-        } else {
+    // STEP 1: Hydrate from localStorage cache - show UI INSTANTLY
+    hydrateAuth();
+    const hasCachedTenants = hydrateTenants();
+
+    if (hasCachedTenants) {
+      // Cached data exists - show dashboard immediately, refresh in background
+      setLoading(false);
+
+      // Background refresh - don't block UI
+      apiClient.get("/tenants").then((res) => {
+        const tenantList = res.data || [];
+        setTenants(tenantList);
+        if (tenantList.length === 0) setNoTenant(true);
+      }).catch(() => {});
+
+      if (!user) {
+        apiClient.get("/auth/me").then((res) => {
+          const refreshToken = localStorage.getItem("refreshToken") || "";
+          setAuth(res.data, token, refreshToken);
+        }).catch(() => { logout(); router.push("/login"); });
+      }
+    } else {
+      // No cache - must fetch before showing UI (first time after login)
+      const init = async () => {
+        try {
           const [userRes, tenantsRes] = await Promise.all([
-            apiClient.get("/auth/me"),
+            user ? null : apiClient.get("/auth/me"),
             apiClient.get("/tenants"),
           ]);
           if (userRes) {
@@ -161,39 +176,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           }
           const tenantList = tenantsRes.data || [];
           setTenants(tenantList);
-          if (tenantList.length === 0) { setNoTenant(true); }
+          if (tenantList.length === 0) setNoTenant(true);
+        } catch {
+          logout();
+          router.push("/login");
+        } finally {
           setLoading(false);
         }
+      };
+      init();
+    }
 
-        // Non-blocking: fetch task counts in background
-        apiClient.get("/analytics/overview").then((res) => {
-          setTaskCounts({ total: res.data.totalTasks || 0, inProgress: res.data.inProgressTasks || 0 });
-        }).catch(() => null);
-
-      } catch {
-        logout();
-        router.push("/login");
-      }
-    };
-
-    init();
+    // Background: fetch task counts (never blocks)
+    apiClient.get("/analytics/overview").then((res) => {
+      setTaskCounts({ total: res.data.totalTasks || 0, inProgress: res.data.inProgressTasks || 0 });
+    }).catch(() => null);
   }, []);
 
   useEffect(() => {
     if (!currentTenant || !user) return;
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000);
-    const socket = getSocket();
-    socket.emit("join-tenant", currentTenant.id);
-    socket.emit("join-user", user.id);
-    socket.on("notification:new", (notif: Notification) => {
-      setNotifications((prev) => [notif, ...prev]);
-      setUnreadCount((c) => c + 1);
-    });
-    return () => {
-      clearInterval(interval);
-      socket.off("notification:new");
-    };
+    try {
+      const socket = getSocket();
+      socket.emit("join-tenant", currentTenant.id);
+      socket.emit("join-user", user.id);
+      socket.on("notification:new", (notif: Notification) => {
+        setNotifications((prev) => [notif, ...prev]);
+        setUnreadCount((c) => c + 1);
+      });
+      return () => {
+        clearInterval(interval);
+        socket.off("notification:new");
+      };
+    } catch {
+      return () => clearInterval(interval);
+    }
   }, [currentTenant, user, fetchNotifications]);
 
   const handleWorkspaceCreated = (tenant: Tenant) => {
