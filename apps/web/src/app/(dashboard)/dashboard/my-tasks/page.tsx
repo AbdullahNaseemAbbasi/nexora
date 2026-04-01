@@ -45,7 +45,7 @@ export default function MyTasksPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
-    if (!currentTenant) return;
+    if (!currentTenant) { setLoading(false); return; }
     try {
       const res = await apiClient.get("/tasks/my");
       setTasks(res.data || []);

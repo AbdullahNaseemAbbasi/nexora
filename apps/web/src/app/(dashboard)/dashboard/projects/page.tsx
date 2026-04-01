@@ -30,7 +30,7 @@ export default function ProjectsPage() {
   const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
-    if (!currentTenant) return;
+    if (!currentTenant) { setLoading(false); return; }
     fetchProjects();
   }, [currentTenant]);
 

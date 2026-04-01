@@ -50,7 +50,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!currentTenant) return;
+    if (!currentTenant) { setLoading(false); return; }
     apiClient.get("/analytics/detailed")
       .then((res) => setStats(res.data))
       .catch(console.error)

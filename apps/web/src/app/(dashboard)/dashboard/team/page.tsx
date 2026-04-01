@@ -82,7 +82,7 @@ export default function TeamPage() {
   };
 
   useEffect(() => {
-    if (!currentTenant) return;
+    if (!currentTenant) { setLoading(false); return; }
     fetchData();
   }, [currentTenant]);
 

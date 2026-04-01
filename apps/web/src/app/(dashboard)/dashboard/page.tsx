@@ -48,7 +48,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!currentTenant) return;
+    if (!currentTenant) { setLoading(false); return; }
 
     const fetchData = async () => {
       try {

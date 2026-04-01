@@ -77,7 +77,7 @@ export default function ActivityPage() {
 
   const fetchActivity = useCallback(
     async (showRefresh = false) => {
-      if (!currentTenant) return;
+      if (!currentTenant) { setLoading(false); return; }
       if (showRefresh) setRefreshing(true);
       try {
         const res = await apiClient.get(`/analytics/activity?limit=${limit}`);
