@@ -52,26 +52,30 @@ export default function DashboardPage() {
 
     const fetchData = async () => {
       try {
-        const [overviewRes, projectsRes, activityRes] = await Promise.all([
+        const [overviewRes, activityRes] = await Promise.all([
           apiClient.get("/analytics/overview"),
-          apiClient.get("/projects"),
           apiClient.get("/analytics/activity").catch(() => ({ data: [] })),
         ]);
         setActivities(activityRes.data || []);
         setOverview(overviewRes.data);
+        setLoading(false);
 
-        // Get recent tasks from first project
-        const allTasks: RecentTask[] = [];
-        for (const project of projectsRes.data.slice(0, 3)) {
-          const tasksRes = await apiClient.get(`/projects/${project.id}/tasks`);
-          for (const task of tasksRes.data.slice(0, 3)) {
-            allTasks.push({ ...task, project: { name: project.name } });
-          }
-        }
-        setTasks(allTasks.slice(0, 8));
+        // Fetch tasks in background (non-blocking)
+        apiClient.get("/projects").then(async (projectsRes) => {
+          const allTasks: RecentTask[] = [];
+          const projectPromises = projectsRes.data.slice(0, 3).map(async (project: any) => {
+            try {
+              const tasksRes = await apiClient.get(`/projects/${project.id}/tasks`);
+              for (const task of tasksRes.data.slice(0, 3)) {
+                allTasks.push({ ...task, project: { name: project.name } });
+              }
+            } catch {}
+          });
+          await Promise.all(projectPromises);
+          setTasks(allTasks.slice(0, 8));
+        }).catch(() => {});
       } catch (err) {
         console.error(err);
-      } finally {
         setLoading(false);
       }
     };

@@ -4,8 +4,10 @@ let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
-    socket = io("http://localhost:3001", {
-      transports: ["websocket"],
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+    const socketUrl = apiUrl.replace("/api/v1", "");
+    socket = io(socketUrl, {
+      transports: ["websocket", "polling"],
       autoConnect: true,
     });
   }

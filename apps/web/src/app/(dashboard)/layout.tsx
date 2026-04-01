@@ -143,27 +143,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const init = async () => {
       try {
-        const [userRes, tenantsRes] = await Promise.all([
-          user ? null : apiClient.get("/auth/me"),
-          apiClient.get("/tenants"),
-        ]);
-
-        if (userRes) {
-          const refreshToken = localStorage.getItem("refreshToken") || "";
-          setAuth(userRes.data, token, refreshToken);
-        }
-
-        const tenantList = tenantsRes.data || [];
-        setTenants(tenantList);
-
-        if (tenantList.length === 0) {
-          setNoTenant(true);
+        // If user already cached in store, show UI immediately
+        if (user) {
+          const tenantsRes = await apiClient.get("/tenants");
+          const tenantList = tenantsRes.data || [];
+          setTenants(tenantList);
+          if (tenantList.length === 0) { setNoTenant(true); }
           setLoading(false);
-          return;
+        } else {
+          const [userRes, tenantsRes] = await Promise.all([
+            apiClient.get("/auth/me"),
+            apiClient.get("/tenants"),
+          ]);
+          if (userRes) {
+            const refreshToken = localStorage.getItem("refreshToken") || "";
+            setAuth(userRes.data, token, refreshToken);
+          }
+          const tenantList = tenantsRes.data || [];
+          setTenants(tenantList);
+          if (tenantList.length === 0) { setNoTenant(true); }
+          setLoading(false);
         }
 
-        setLoading(false);
-
+        // Non-blocking: fetch task counts in background
         apiClient.get("/analytics/overview").then((res) => {
           setTaskCounts({ total: res.data.totalTasks || 0, inProgress: res.data.inProgressTasks || 0 });
         }).catch(() => null);
