@@ -12,7 +12,7 @@ export class UpdateProjectDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @MaxLength(500)
+  @MaxLength(2000)
   description?: string;
 
   @ApiPropertyOptional({ enum: ["ACTIVE", "ARCHIVED", "COMPLETED"] })

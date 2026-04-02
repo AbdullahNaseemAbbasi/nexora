@@ -38,8 +38,10 @@ export default function ProjectsPage() {
     try {
       const res = await apiClient.get("/projects");
       setProjects(res.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to fetch projects", err);
+      const message = err?.response?.data?.message;
+      if (message) toast.error(Array.isArray(message) ? message.join(", ") : message);
     } finally {
       setLoading(false);
     }
@@ -59,9 +61,10 @@ export default function ProjectsPage() {
       setShowForm(false);
       fetchProjects();
       toast.success("Project created");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to create project", err);
-      toast.error("Failed to create project");
+      const message = err?.response?.data?.message || "Failed to create project";
+      toast.error(Array.isArray(message) ? message.join(", ") : message);
     } finally {
       setCreating(false);
     }
