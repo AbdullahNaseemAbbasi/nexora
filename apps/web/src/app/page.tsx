@@ -94,8 +94,6 @@ export default function Home() {
           </div>
         </div>
       </nav>
-
-      {/* Hero */}
       <section className="pt-20 pb-16 sm:pt-28 sm:pb-20 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border text-xs text-muted-foreground mb-6">
@@ -124,8 +122,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Features */}
       <section id="features" className="py-16 sm:py-20 px-4 border-t border-border">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
@@ -150,8 +146,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Pricing */}
       <section id="pricing" className="py-16 sm:py-20 px-4 border-t border-border">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
