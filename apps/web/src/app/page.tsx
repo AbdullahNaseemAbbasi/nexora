@@ -24,43 +24,43 @@ const features = [
     title: "AI-Powered", 
     description: "Get smart task suggestions, meeting summaries, and project insights.",
   },
-  {
+  { 
     icon: Users,
     title: "Multi-Tenant", 
     description: "Each organization gets its own isolated workspace with role-based access.",
   },
-  {
+  { 
     icon: Shield,
     title: "Secure by Default", 
     description: "Enterprise-grade security with JWT auth and encrypted data.",
   },
-  {
+  { 
     icon: BarChart3,
     title: "Analytics", 
     description: "Track progress with real-time dashboards and detailed reports.",
   },
-  {
+  { 
     icon: Zap,
     title: "Real-Time", 
     description: "Instant updates across your team with WebSocket notifications.",
   },
-];
+]; 
 
 const plans = [
-  {
+  { 
     name: "Free", 
     price: "$0",
     description: "For small teams getting started",
     features: ["3 team members", "2 projects", "Basic AI features", "500MB storage"],
   },
-  { 
+  {  
     name: "Pro",
     price: "$29",
     description: "For growing teams",
     features: ["20 team members", "Unlimited projects", "Full AI features", "10GB storage"],
     popular: true,
   },
-  { 
+  {  
     name: "Enterprise",
     price: "$99",
     description: "For large organizations",
