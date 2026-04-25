@@ -24,28 +24,28 @@ const features = [
     title: "AI-Powered", 
     description: "Get smart task suggestions, meeting summaries, and project insights.",
   },
-  { 
+  {  
     icon: Users,
-    title: "Multi-Tenant", 
+    title: "Multi-Tenant",  
     description: "Each organization gets its own isolated workspace with role-based access.",
-  },
+  }, 
   { 
     icon: Shield,
     title: "Secure by Default", 
     description: "Enterprise-grade security with JWT auth and encrypted data.",
-  },
+  }, 
   { 
     icon: BarChart3,
-    title: "Analytics", 
+    title: "Analytics",  
     description: "Track progress with real-time dashboards and detailed reports.",
   },
   { 
     icon: Zap,
-    title: "Real-Time", 
+    title: "Real-Time",  
     description: "Instant updates across your team with WebSocket notifications.",
   },
 ]; 
-
+ 
 const plans = [
   { 
     name: "Free", 
