@@ -52,9 +52,19 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) throw new UnauthorizedException("Invalid email or password");
 
-    const tokens = await this.generateTokens(user.id, user.email);
+    // Fetch tokens and tenants in parallel — one less round-trip from the client
+    const [tokens, tenants] = await Promise.all([
+      this.generateTokens(user.id, user.email),
+      this.prisma.tenant.findMany({
+        where: { members: { some: { userId: user.id } } },
+        include: { _count: { select: { members: true, projects: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
+
     return {
       user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, emailVerified: user.emailVerified },
+      tenants,
       ...tokens,
     };
   }

@@ -38,13 +38,10 @@ function LoginForm() {
     setError(null);
     try {
       const response = await apiClient.post("/auth/login", data);
-      const { user, accessToken, refreshToken } = response.data;
+      const { user, accessToken, refreshToken, tenants } = response.data;
       setAuth(user, accessToken, refreshToken);
-      // Prefetch tenants before redirect so dashboard loads instantly
-      try {
-        const tenantsRes = await apiClient.get("/tenants");
-        setTenants(tenantsRes.data || []);
-      } catch {}
+      // Login response now includes tenants — no extra round-trip needed
+      setTenants(tenants || []);
       const redirect = searchParams.get("redirect");
       router.push(redirect || "/dashboard");
     } catch (err: unknown) {

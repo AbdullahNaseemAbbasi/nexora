@@ -146,11 +146,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!token) { router.push("/login"); return; }
 
     hydrateAuth();
-    hydrateTenants();
+    const hadCache = hydrateTenants();
 
-    // Always fetch fresh data — deterministic, no race conditions.
-    // Stale localStorage tenant IDs are reconciled by setTenants which validates
-    // savedId against the fresh list and falls back to tenants[0] if invalid.
+    // If localStorage already has tenants (from login or previous session), skip
+    // the auth/me + tenants round-trip entirely. The bulk /dashboard/init effect
+    // will validate the tenant via TenantGuard and refresh data anyway.
+    if (hadCache) {
+      setLoading(false);
+      // Refresh user/tenants in background — non-blocking
+      Promise.all([
+        apiClient.get("/auth/me").catch(() => null),
+        apiClient.get("/tenants").catch(() => null),
+      ]).then(([userRes, tenantsRes]) => {
+        if (userRes) {
+          const refreshToken = localStorage.getItem("refreshToken") || "";
+          setAuth(userRes.data, token, refreshToken);
+        }
+        if (tenantsRes) {
+          const tenantList = tenantsRes.data || [];
+          setTenants(tenantList);
+          if (tenantList.length === 0) setNoTenant(true);
+        }
+      });
+      return;
+    }
+
+    // Cold start (no cache) — fetch before showing UI
     const init = async () => {
       try {
         const [userRes, tenantsRes] = await Promise.all([
@@ -173,63 +194,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     init();
   }, []);
 
-  // PREFETCH ALL PAGE DATA sequentially when tenant changes. Sequential avoids
-  // Chrome's per-host concurrent-connection limit on localhost which was causing
-  // some requests to hang. Total prefetch ~2s on Sydney Supabase but every page
-  // navigation after that is instant from the store cache.
+  // SINGLE bulk fetch — backend runs 7 queries in parallel and returns everything
+  // in ONE response. Frontend pays one round-trip latency (~250ms to Sydney)
+  // instead of 7. Populates the entire store cache so all sidebar tabs are
+  // instant after this completes.
   useEffect(() => {
     if (!currentTenant) return;
-    const tenantId = currentTenant.id;
     let cancelled = false;
 
-    const run = async () => {
-      try {
-        const overview = await apiClient.get("/analytics/overview");
-        if (cancelled) return;
-        setOverview(overview.data);
-        setTaskCounts({ total: overview.data.totalTasks || 0, inProgress: overview.data.inProgressTasks || 0 });
-      } catch {
-        if (!cancelled) { setOverview(null); setTaskCounts({ total: 0, inProgress: 0 }); }
-      }
+    apiClient.get("/dashboard/init").then((res) => {
+      if (cancelled) return;
+      const d = res.data;
+      setOverview(d.overview);
+      setTaskCounts({
+        total: d.overview?.totalTasks || 0,
+        inProgress: d.overview?.inProgressTasks || 0,
+      });
+      setMyTasks(d.myTasks || []);
+      setProjects(d.projects || []);
+      setMembers(d.members || []);
+      setInvitations(d.invitations || []);
+      setActivity(d.activity || []);
+      setDetailedStats(d.detailedStats);
+    }).catch(() => {
+      if (cancelled) return;
+      setOverview(null);
+      setTaskCounts({ total: 0, inProgress: 0 });
+      setMyTasks([]);
+      setProjects([]);
+      setMembers([]);
+      setInvitations([]);
+      setActivity([]);
+      setDetailedStats(null);
+    });
 
-      try {
-        const myTasks = await apiClient.get("/tasks/my");
-        if (cancelled) return;
-        setMyTasks(myTasks.data || []);
-      } catch { if (!cancelled) setMyTasks([]); }
-
-      try {
-        const projects = await apiClient.get("/projects");
-        if (cancelled) return;
-        setProjects(projects.data || []);
-      } catch { if (!cancelled) setProjects([]); }
-
-      try {
-        const members = await apiClient.get(`/tenants/${tenantId}/members`);
-        if (cancelled) return;
-        setMembers(members.data || []);
-      } catch { if (!cancelled) setMembers([]); }
-
-      try {
-        const invitations = await apiClient.get(`/tenants/${tenantId}/invitations`);
-        if (cancelled) return;
-        setInvitations(invitations.data || []);
-      } catch { if (!cancelled) setInvitations([]); }
-
-      try {
-        const activity = await apiClient.get("/analytics/activity?limit=50");
-        if (cancelled) return;
-        setActivity(activity.data || []);
-      } catch { if (!cancelled) setActivity([]); }
-
-      try {
-        const detailed = await apiClient.get("/analytics/detailed");
-        if (cancelled) return;
-        setDetailedStats(detailed.data);
-      } catch { if (!cancelled) setDetailedStats(null); }
-    };
-
-    run();
     return () => { cancelled = true; };
   }, [currentTenant, setOverview, setMyTasks, setProjects, setMembers, setInvitations, setActivity, setDetailedStats]);
 
