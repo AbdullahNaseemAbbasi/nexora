@@ -113,7 +113,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const {
     tenants, currentTenant, setTenants, setCurrentTenant,
     setOverview, setMyTasks, setProjects, setMembers, setInvitations, setActivity, setDetailedStats,
-    resetCache,
     hydrate: hydrateTenants,
   } = useTenantStore();
   const [loading, setLoading] = useState(true);
@@ -174,29 +173,65 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     init();
   }, []);
 
-  // PREFETCH ALL PAGE DATA when tenant changes. Stores results in tenant store
-  // so navigating between sidebar tabs is INSTANT (no per-page fetch). Each
-  // request runs in parallel and populates its slice of the cache as it arrives.
+  // PREFETCH ALL PAGE DATA sequentially when tenant changes. Sequential avoids
+  // Chrome's per-host concurrent-connection limit on localhost which was causing
+  // some requests to hang. Total prefetch ~2s on Sydney Supabase but every page
+  // navigation after that is instant from the store cache.
   useEffect(() => {
     if (!currentTenant) return;
-    resetCache();
     const tenantId = currentTenant.id;
+    let cancelled = false;
 
-    apiClient.get("/analytics/overview").then((res) => {
-      setOverview(res.data);
-      setTaskCounts({ total: res.data.totalTasks || 0, inProgress: res.data.inProgressTasks || 0 });
-    }).catch(() => {
-      setOverview(null);
-      setTaskCounts({ total: 0, inProgress: 0 });
-    });
+    const run = async () => {
+      try {
+        const overview = await apiClient.get("/analytics/overview");
+        if (cancelled) return;
+        setOverview(overview.data);
+        setTaskCounts({ total: overview.data.totalTasks || 0, inProgress: overview.data.inProgressTasks || 0 });
+      } catch {
+        if (!cancelled) { setOverview(null); setTaskCounts({ total: 0, inProgress: 0 }); }
+      }
 
-    apiClient.get("/tasks/my").then((res) => setMyTasks(res.data || [])).catch(() => setMyTasks([]));
-    apiClient.get("/projects").then((res) => setProjects(res.data || [])).catch(() => setProjects([]));
-    apiClient.get(`/tenants/${tenantId}/members`).then((res) => setMembers(res.data || [])).catch(() => setMembers([]));
-    apiClient.get(`/tenants/${tenantId}/invitations`).then((res) => setInvitations(res.data || [])).catch(() => setInvitations([]));
-    apiClient.get("/analytics/activity?limit=50").then((res) => setActivity(res.data || [])).catch(() => setActivity([]));
-    apiClient.get("/analytics/detailed").then((res) => setDetailedStats(res.data)).catch(() => setDetailedStats(null));
-  }, [currentTenant, resetCache, setOverview, setMyTasks, setProjects, setMembers, setInvitations, setActivity, setDetailedStats]);
+      try {
+        const myTasks = await apiClient.get("/tasks/my");
+        if (cancelled) return;
+        setMyTasks(myTasks.data || []);
+      } catch { if (!cancelled) setMyTasks([]); }
+
+      try {
+        const projects = await apiClient.get("/projects");
+        if (cancelled) return;
+        setProjects(projects.data || []);
+      } catch { if (!cancelled) setProjects([]); }
+
+      try {
+        const members = await apiClient.get(`/tenants/${tenantId}/members`);
+        if (cancelled) return;
+        setMembers(members.data || []);
+      } catch { if (!cancelled) setMembers([]); }
+
+      try {
+        const invitations = await apiClient.get(`/tenants/${tenantId}/invitations`);
+        if (cancelled) return;
+        setInvitations(invitations.data || []);
+      } catch { if (!cancelled) setInvitations([]); }
+
+      try {
+        const activity = await apiClient.get("/analytics/activity?limit=50");
+        if (cancelled) return;
+        setActivity(activity.data || []);
+      } catch { if (!cancelled) setActivity([]); }
+
+      try {
+        const detailed = await apiClient.get("/analytics/detailed");
+        if (cancelled) return;
+        setDetailedStats(detailed.data);
+      } catch { if (!cancelled) setDetailedStats(null); }
+    };
+
+    run();
+    return () => { cancelled = true; };
+  }, [currentTenant, setOverview, setMyTasks, setProjects, setMembers, setInvitations, setActivity, setDetailedStats]);
 
   useEffect(() => {
     if (!currentTenant || !user) return;
