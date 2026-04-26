@@ -51,7 +51,7 @@ export default function TeamPage() {
   const currentTenant = useTenantStore((s) => s.currentTenant);
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("MEMBER");
@@ -87,6 +87,7 @@ export default function TeamPage() {
   }, [currentTenant]);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const [membersRes, invitationsRes] = await Promise.all([
         apiClient.get(`/tenants/${currentTenant!.id}/members`),

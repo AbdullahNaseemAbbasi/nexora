@@ -36,6 +36,7 @@ export class TenantsService {
     return this.prisma.tenant.findMany({
       where: { members: { some: { userId } } },
       include: { _count: { select: { members: true, projects: true } } },
+      orderBy: { createdAt: "asc" },
     });
   }
 

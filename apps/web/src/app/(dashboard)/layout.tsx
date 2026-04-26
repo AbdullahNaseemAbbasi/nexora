@@ -110,7 +110,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, setAuth, logout, hydrate: hydrateAuth } = useAuthStore();
-  const { tenants, currentTenant, setTenants, setCurrentTenant, hydrate: hydrateTenants } = useTenantStore();
+  const { tenants, currentTenant, setTenants, setCurrentTenant, setOverview, hydrate: hydrateTenants } = useTenantStore();
   const [loading, setLoading] = useState(true);
   const [noTenant, setNoTenant] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -141,57 +141,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const token = localStorage.getItem("accessToken");
     if (!token) { router.push("/login"); return; }
 
-    // STEP 1: Hydrate from localStorage cache - show UI INSTANTLY
     hydrateAuth();
-    const hasCachedTenants = hydrateTenants();
+    hydrateTenants();
 
-    if (hasCachedTenants) {
-      // Cached data exists - show dashboard immediately, refresh in background
-      setLoading(false);
+    // Always fetch fresh data — deterministic, no race conditions.
+    // Stale localStorage tenant IDs are reconciled by setTenants which validates
+    // savedId against the fresh list and falls back to tenants[0] if invalid.
+    const init = async () => {
+      try {
+        const [userRes, tenantsRes] = await Promise.all([
+          apiClient.get("/auth/me"),
+          apiClient.get("/tenants"),
+        ]);
+        const refreshToken = localStorage.getItem("refreshToken") || "";
+        setAuth(userRes.data, token, refreshToken);
 
-      // Background refresh - don't block UI
-      apiClient.get("/tenants").then((res) => {
-        const tenantList = res.data || [];
+        const tenantList = tenantsRes.data || [];
         setTenants(tenantList);
         if (tenantList.length === 0) setNoTenant(true);
-      }).catch(() => {});
-
-      if (!user) {
-        apiClient.get("/auth/me").then((res) => {
-          const refreshToken = localStorage.getItem("refreshToken") || "";
-          setAuth(res.data, token, refreshToken);
-        }).catch(() => { logout(); router.push("/login"); });
+      } catch {
+        logout();
+        router.push("/login");
+      } finally {
+        setLoading(false);
       }
-    } else {
-      // No cache - must fetch before showing UI (first time after login)
-      const init = async () => {
-        try {
-          const [userRes, tenantsRes] = await Promise.all([
-            user ? null : apiClient.get("/auth/me"),
-            apiClient.get("/tenants"),
-          ]);
-          if (userRes) {
-            const refreshToken = localStorage.getItem("refreshToken") || "";
-            setAuth(userRes.data, token, refreshToken);
-          }
-          const tenantList = tenantsRes.data || [];
-          setTenants(tenantList);
-          if (tenantList.length === 0) setNoTenant(true);
-        } catch {
-          logout();
-          router.push("/login");
-        } finally {
-          setLoading(false);
-        }
-      };
-      init();
-    }
-
-    // Background: fetch task counts (never blocks)
-    apiClient.get("/analytics/overview").then((res) => {
-      setTaskCounts({ total: res.data.totalTasks || 0, inProgress: res.data.inProgressTasks || 0 });
-    }).catch(() => null);
+    };
+    init();
   }, []);
+
+  // Single source of truth for /analytics/overview — populates BOTH the sidebar
+  // badge AND the dashboard page stats via the tenant store. Avoids duplicate
+  // concurrent fetches that hit Chrome's per-host connection limit on localhost.
+  useEffect(() => {
+    if (!currentTenant) return;
+    apiClient.get("/analytics/overview").then((res) => {
+      setOverview(res.data);
+      setTaskCounts({ total: res.data.totalTasks || 0, inProgress: res.data.inProgressTasks || 0 });
+    }).catch(() => {
+      setOverview(null);
+      setTaskCounts({ total: 0, inProgress: 0 });
+    });
+  }, [currentTenant, setOverview]);
 
   useEffect(() => {
     if (!currentTenant || !user) return;

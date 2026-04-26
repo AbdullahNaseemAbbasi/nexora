@@ -42,46 +42,35 @@ const statusLabel: Record<string, string> = {
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const currentTenant = useTenantStore((s) => s.currentTenant);
-  const [overview, setOverview] = useState<Overview | null>(null);
+  const overview = useTenantStore((s) => s.overview);
   const [tasks, setTasks] = useState<RecentTask[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
 
+  // Activity feed and recent tasks — fired AFTER layout's overview call so we
+  // don't compete for connections on first paint.
   useEffect(() => {
-    if (!currentTenant) { setLoading(false); return; }
+    if (!currentTenant || !overview) return;
 
-    const fetchData = async () => {
-      try {
-        const [overviewRes, activityRes] = await Promise.all([
-          apiClient.get("/analytics/overview"),
-          apiClient.get("/analytics/activity").catch(() => ({ data: [] })),
-        ]);
-        setActivities(activityRes.data || []);
-        setOverview(overviewRes.data);
-        setLoading(false);
+    apiClient.get("/analytics/activity")
+      .then((res) => setActivities(res.data || []))
+      .catch(() => setActivities([]));
 
-        // Fetch tasks in background (non-blocking)
-        apiClient.get("/projects").then(async (projectsRes) => {
-          const allTasks: RecentTask[] = [];
-          const projectPromises = projectsRes.data.slice(0, 3).map(async (project: any) => {
-            try {
-              const tasksRes = await apiClient.get(`/projects/${project.id}/tasks`);
-              for (const task of tasksRes.data.slice(0, 3)) {
-                allTasks.push({ ...task, project: { name: project.name } });
-              }
-            } catch {}
-          });
-          await Promise.all(projectPromises);
-          setTasks(allTasks.slice(0, 8));
-        }).catch(() => {});
-      } catch (err) {
-        console.error(err);
-        setLoading(false);
-      }
-    };
+    apiClient.get("/projects").then(async (projectsRes) => {
+      const allTasks: RecentTask[] = [];
+      const projectPromises = projectsRes.data.slice(0, 3).map(async (project: any) => {
+        try {
+          const tasksRes = await apiClient.get(`/projects/${project.id}/tasks`);
+          for (const task of tasksRes.data.slice(0, 3)) {
+            allTasks.push({ ...task, project: { name: project.name } });
+          }
+        } catch {}
+      });
+      await Promise.all(projectPromises);
+      setTasks(allTasks.slice(0, 8));
+    }).catch(() => setTasks([]));
+  }, [currentTenant, overview]);
 
-    fetchData();
-  }, [currentTenant]);
+  const loading = !overview && !!currentTenant;
 
   if (loading) {
     return (

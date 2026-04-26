@@ -21,7 +21,7 @@ interface Project {
 export default function ProjectsPage() {
   const currentTenant = useTenantStore((s) => s.currentTenant);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -35,6 +35,7 @@ export default function ProjectsPage() {
   }, [currentTenant]);
 
   const fetchProjects = async () => {
+    setLoading(true);
     try {
       const res = await apiClient.get("/projects");
       setProjects(res.data);

@@ -40,12 +40,13 @@ const STATUS_ORDER = ["IN_PROGRESS", "IN_REVIEW", "TODO", "DONE"];
 export default function MyTasksPage() {
   const { currentTenant } = useTenantStore();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
     if (!currentTenant) { setLoading(false); return; }
+    setLoading(true);
     try {
       const res = await apiClient.get("/tasks/my");
       setTasks(res.data || []);

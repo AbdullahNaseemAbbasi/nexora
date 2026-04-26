@@ -11,17 +11,32 @@ interface Tenant {
   };
 }
 
+interface Overview {
+  totalProjects: number;
+  totalMembers: number;
+  totalTasks: number;
+  completedTasks: number;
+  inProgressTasks: number;
+  todoTasks: number;
+  inReviewTasks: number;
+  tasksByStatus?: Record<string, number>;
+}
+
 interface TenantState {
   tenants: Tenant[];
   currentTenant: Tenant | null;
+  overview: Overview | null;
   setTenants: (tenants: Tenant[]) => void;
   setCurrentTenant: (tenant: Tenant) => void;
+  setOverview: (overview: Overview | null) => void;
   hydrate: () => boolean;
 }
 
 export const useTenantStore = create<TenantState>((set) => ({
   tenants: [],
   currentTenant: null,
+  overview: null,
+  setOverview: (overview) => set({ overview }),
 
   setTenants: (tenants) => {
     localStorage.setItem("tenants", JSON.stringify(tenants));

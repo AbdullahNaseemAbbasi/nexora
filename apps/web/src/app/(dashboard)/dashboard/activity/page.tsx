@@ -71,7 +71,7 @@ function groupByDate(items: ActivityItem[]) {
 export default function ActivityPage() {
   const { currentTenant } = useTenantStore();
   const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [limit, setLimit] = useState(50);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -79,6 +79,7 @@ export default function ActivityPage() {
     async (showRefresh = false) => {
       if (!currentTenant) { setLoading(false); return; }
       if (showRefresh) setRefreshing(true);
+      else setLoading(true);
       try {
         const res = await apiClient.get(`/analytics/activity?limit=${limit}`);
         setActivities(res.data || []);

@@ -47,10 +47,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function AnalyticsPage() {
   const currentTenant = useTenantStore((s) => s.currentTenant);
   const [stats, setStats] = useState<DetailedStats | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!currentTenant) { setLoading(false); return; }
+    setLoading(true);
     apiClient.get("/analytics/detailed")
       .then((res) => setStats(res.data))
       .catch(console.error)
