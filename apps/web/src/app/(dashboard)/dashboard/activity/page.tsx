@@ -69,48 +69,47 @@ function groupByDate(items: ActivityItem[]) {
 }
 
 export default function ActivityPage() {
-  const { currentTenant } = useTenantStore();
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { currentTenant, activity, setActivity } = useTenantStore();
+  const activities: ActivityItem[] = (activity as ActivityItem[]) || [];
+  const loading = activity === null && !!currentTenant;
   const [limit, setLimit] = useState(50);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchActivity = useCallback(
     async (showRefresh = false) => {
-      if (!currentTenant) { setLoading(false); return; }
+      if (!currentTenant) return;
       if (showRefresh) setRefreshing(true);
-      else setLoading(true);
       try {
         const res = await apiClient.get(`/analytics/activity?limit=${limit}`);
-        setActivities(res.data || []);
+        setActivity(res.data || []);
       } catch {
-        setActivities([]);
+        setActivity([]);
       } finally {
-        setLoading(false);
         setRefreshing(false);
       }
     },
-    [currentTenant, limit]
+    [currentTenant, limit, setActivity]
   );
 
+  // Refetch when "Load more" extends the limit
   useEffect(() => {
-    fetchActivity();
-  }, [fetchActivity]);
+    if (limit > 50 && currentTenant) fetchActivity();
+  }, [limit, currentTenant, fetchActivity]);
 
   // Real-time: listen for new activity events on the tenant room
   useEffect(() => {
     if (!currentTenant) return;
     const socket = getSocket();
 
-    const handleNewActivity = (activity: ActivityItem) => {
-      setActivities((prev) => [activity, ...prev]);
+    const handleNewActivity = (a: ActivityItem) => {
+      setActivity([a, ...activities]);
     };
 
     socket.on("activity:new", handleNewActivity);
     return () => {
       socket.off("activity:new", handleNewActivity);
     };
-  }, [currentTenant]);
+  }, [currentTenant, activities, setActivity]);
 
   const grouped = groupByDate(activities);
 

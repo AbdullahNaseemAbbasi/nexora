@@ -46,17 +46,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function AnalyticsPage() {
   const currentTenant = useTenantStore((s) => s.currentTenant);
-  const [stats, setStats] = useState<DetailedStats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!currentTenant) { setLoading(false); return; }
-    setLoading(true);
-    apiClient.get("/analytics/detailed")
-      .then((res) => setStats(res.data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [currentTenant]);
+  const cachedStats = useTenantStore((s) => s.detailedStats);
+  const stats: DetailedStats | null = cachedStats as DetailedStats | null;
+  const loading = cachedStats === null && !!currentTenant;
 
   if (loading) {
     return (

@@ -20,8 +20,10 @@ interface Project {
 
 export default function ProjectsPage() {
   const currentTenant = useTenantStore((s) => s.currentTenant);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedProjects = useTenantStore((s) => s.projects);
+  const setStoreProjects = useTenantStore((s) => s.setProjects);
+  const projects: Project[] = (cachedProjects as Project[]) || [];
+  const loading = cachedProjects === null && !!currentTenant;
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -29,22 +31,14 @@ export default function ProjectsPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
 
-  useEffect(() => {
-    if (!currentTenant) { setLoading(false); return; }
-    fetchProjects();
-  }, [currentTenant]);
-
   const fetchProjects = async () => {
-    setLoading(true);
     try {
       const res = await apiClient.get("/projects");
-      setProjects(res.data);
+      setStoreProjects(res.data || []);
     } catch (err: any) {
       console.error("Failed to fetch projects", err);
       const message = err?.response?.data?.message;
       if (message) toast.error(Array.isArray(message) ? message.join(", ") : message);
-    } finally {
-      setLoading(false);
     }
   };
 

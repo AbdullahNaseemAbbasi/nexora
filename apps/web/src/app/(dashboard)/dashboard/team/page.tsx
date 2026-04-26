@@ -49,9 +49,13 @@ const statusIcon: Record<string, React.ReactNode> = {
 
 export default function TeamPage() {
   const currentTenant = useTenantStore((s) => s.currentTenant);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedMembers = useTenantStore((s) => s.members);
+  const cachedInvitations = useTenantStore((s) => s.invitations);
+  const setStoreMembers = useTenantStore((s) => s.setMembers);
+  const setStoreInvitations = useTenantStore((s) => s.setInvitations);
+  const members: Member[] = (cachedMembers as Member[]) || [];
+  const invitations: Invitation[] = (cachedInvitations as Invitation[]) || [];
+  const loading = cachedMembers === null && !!currentTenant;
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("MEMBER");
@@ -81,24 +85,17 @@ export default function TeamPage() {
     }
   };
 
-  useEffect(() => {
-    if (!currentTenant) { setLoading(false); return; }
-    fetchData();
-  }, [currentTenant]);
-
   const fetchData = async () => {
-    setLoading(true);
+    if (!currentTenant) return;
     try {
       const [membersRes, invitationsRes] = await Promise.all([
-        apiClient.get(`/tenants/${currentTenant!.id}/members`),
-        apiClient.get(`/tenants/${currentTenant!.id}/invitations`),
+        apiClient.get(`/tenants/${currentTenant.id}/members`),
+        apiClient.get(`/tenants/${currentTenant.id}/invitations`),
       ]);
-      setMembers(membersRes.data);
-      setInvitations(invitationsRes.data);
+      setStoreMembers(membersRes.data || []);
+      setStoreInvitations(invitationsRes.data || []);
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 

@@ -110,7 +110,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, setAuth, logout, hydrate: hydrateAuth } = useAuthStore();
-  const { tenants, currentTenant, setTenants, setCurrentTenant, setOverview, hydrate: hydrateTenants } = useTenantStore();
+  const {
+    tenants, currentTenant, setTenants, setCurrentTenant,
+    setOverview, setMyTasks, setProjects, setMembers, setInvitations, setActivity, setDetailedStats,
+    resetCache,
+    hydrate: hydrateTenants,
+  } = useTenantStore();
   const [loading, setLoading] = useState(true);
   const [noTenant, setNoTenant] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -169,11 +174,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     init();
   }, []);
 
-  // Single source of truth for /analytics/overview — populates BOTH the sidebar
-  // badge AND the dashboard page stats via the tenant store. Avoids duplicate
-  // concurrent fetches that hit Chrome's per-host connection limit on localhost.
+  // PREFETCH ALL PAGE DATA when tenant changes. Stores results in tenant store
+  // so navigating between sidebar tabs is INSTANT (no per-page fetch). Each
+  // request runs in parallel and populates its slice of the cache as it arrives.
   useEffect(() => {
     if (!currentTenant) return;
+    resetCache();
+    const tenantId = currentTenant.id;
+
     apiClient.get("/analytics/overview").then((res) => {
       setOverview(res.data);
       setTaskCounts({ total: res.data.totalTasks || 0, inProgress: res.data.inProgressTasks || 0 });
@@ -181,7 +189,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setOverview(null);
       setTaskCounts({ total: 0, inProgress: 0 });
     });
-  }, [currentTenant, setOverview]);
+
+    apiClient.get("/tasks/my").then((res) => setMyTasks(res.data || [])).catch(() => setMyTasks([]));
+    apiClient.get("/projects").then((res) => setProjects(res.data || [])).catch(() => setProjects([]));
+    apiClient.get(`/tenants/${tenantId}/members`).then((res) => setMembers(res.data || [])).catch(() => setMembers([]));
+    apiClient.get(`/tenants/${tenantId}/invitations`).then((res) => setInvitations(res.data || [])).catch(() => setInvitations([]));
+    apiClient.get("/analytics/activity?limit=50").then((res) => setActivity(res.data || [])).catch(() => setActivity([]));
+    apiClient.get("/analytics/detailed").then((res) => setDetailedStats(res.data)).catch(() => setDetailedStats(null));
+  }, [currentTenant, resetCache, setOverview, setMyTasks, setProjects, setMembers, setInvitations, setActivity, setDetailedStats]);
 
   useEffect(() => {
     if (!currentTenant || !user) return;
