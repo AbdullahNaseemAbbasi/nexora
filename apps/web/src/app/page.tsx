@@ -170,33 +170,33 @@ export default function Home() {
                   </span>
                 )}
                 <h3 className="font-semibold mt-3">{plan.name}</h3>
-                <div className="mt-2">
-                  <span className="text-3xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground text-sm">/month</span>
-                </div>
-                <p className="text-[13px] text-muted-foreground mt-1">{plan.description}</p>
-                <ul className="mt-5 space-y-2.5">
-                  {plan.features.map((f) => (
+                <div className="mt-2"> 
+                  <span className="text-3xl font-bold">{plan.price}</span> 
+                  <span className="text-muted-foreground text-sm">/month</span> 
+                </div> 
+                <p className="text-[13px] text-muted-foreground mt-1">{plan.description}</p> 
+                <ul className="mt-5 space-y-2.5"> 
+                  {plan.features.map((f) => ( 
                     <li key={f} className="flex items-center gap-2 text-[13px]">
                       <CheckCircle2 className="h-3.5 w-3.5 text-foreground/50" />
                       {f}
-                    </li>
+                    </li> 
                   ))}
-                </ul>
+                </ul> 
                 <Link href="/register">
-                  <Button
+                  <Button 
                     variant={plan.popular ? "default" : "outline"}
                     className="w-full mt-6 text-[13px]"
                     size="sm"
                   >
                     Get started
-                  </Button>
-                </Link>
-              </div>
+                  </Button> 
+                </Link> 
+              </div> 
             ))}
-          </div>
-        </div>
-      </section>
+          </div> 
+        </div> 
+      </section> 
 
       {/* Footer */}
       <footer className="border-t border-border py-8 px-4">
