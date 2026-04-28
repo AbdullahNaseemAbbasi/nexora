@@ -139,7 +139,7 @@ export default function Home() {
                 <feature.icon className="h-5 w-5 mb-3 text-foreground/70" strokeWidth={1.75} />
                 <h3 className="font-semibold text-sm mb-1">{feature.title}</h3>
                 <p className="text-[13px] text-muted-foreground leading-relaxed">
-                  {feature.description}
+                  {feature.description} 
                 </p>
               </div>
             ))}
@@ -167,7 +167,7 @@ export default function Home() {
                 {plan.popular && (
                   <span className="text-[11px] font-medium bg-foreground text-background px-2 py-0.5 rounded-full">
                     Popular
-                  </span>
+                  </span> 
                 )}
                 <h3 className="font-semibold mt-3">{plan.name}</h3>
                 <div className="mt-2"> 
@@ -176,7 +176,7 @@ export default function Home() {
                 </div> 
                 <p className="text-[13px] text-muted-foreground mt-1">{plan.description}</p> 
                 <ul className="mt-5 space-y-2.5"> 
-                  {plan.features.map((f) => ( 
+                  {plan.features.map((f) => (  
                     <li key={f} className="flex items-center gap-2 text-[13px]">
                       <CheckCircle2 className="h-3.5 w-3.5 text-foreground/50" />
                       {f}
@@ -185,7 +185,7 @@ export default function Home() {
                 </ul> 
                 <Link href="/register">
                   <Button 
-                    variant={plan.popular ? "default" : "outline"}
+                    variant={plan.popular ? "default" : "outline"} 
                     className="w-full mt-6 text-[13px]"
                     size="sm"
                   >
@@ -193,7 +193,7 @@ export default function Home() {
                   </Button> 
                 </Link> 
               </div> 
-            ))}
+            ))} 
           </div> 
         </div> 
       </section> 
@@ -201,7 +201,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-border py-8 px-4">
         <div className="px-6 sm:px-10 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2"> 
             <div className="h-6 w-6 bg-foreground rounded flex items-center justify-center">
               <span className="text-background text-[10px] font-bold">N</span>
             </div>
