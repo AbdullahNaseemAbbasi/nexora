@@ -151,7 +151,7 @@ export default function Home() {
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold">Simple pricing</h2>
             <p className="text-muted-foreground mt-2">
-              Start free. Upgrade when you need to.
+              Start free. Upgrade when you need to. 
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
