@@ -8,10 +8,10 @@ import apiClient from "@/lib/api-client";
 import { toast } from "sonner";
 import { useTenantStore } from "@/stores/tenant-store";
 
-interface Comment {
-  id: string;
+interface Comment {  
+  id: string;  
   content: string;
-  createdAt: string;
+  createdAt: string;  
   user: { id: string; firstName: string; lastName: string };
 }
 
